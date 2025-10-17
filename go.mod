@@ -1,4 +1,4 @@
-module github.com/gregoryhellings/devdashboard
+module github.com/greg-hellings/devdashboard
 
 go 1.21
 

@@ -106,7 +106,7 @@ Follow the instructions in QUICKSTART.md or run:
 ### Future Upgrades
 When upgrading between versions:
 1. Read the changelog for breaking changes
-2. Update your `go.mod`: `go get -u github.com/gregoryhellings/devdashboard`
+2. Update your `go.mod`: `go get -u github.com/greg-hellings/devdashboard`
 3. Run tests: `make test`
 4. Check for deprecated features in your code
 
@@ -120,6 +120,6 @@ See the main README.md for contribution guidelines. When contributing:
 
 ## Links
 
-- [Project Repository](https://github.com/gregoryhellings/devdashboard)
-- [Issue Tracker](https://github.com/gregoryhellings/devdashboard/issues)
+- [Project Repository](https://github.com/greg-hellings/devdashboard)
+- [Issue Tracker](https://github.com/greg-hellings/devdashboard/issues)
 - [Documentation](README.md)

@@ -164,7 +164,7 @@ import (
     "fmt"
     "log"
     
-    "github.com/gregoryhellings/devdashboard/pkg/repository"
+    "github.com/greg-hellings/devdashboard/pkg/repository"
 )
 
 func main() {
