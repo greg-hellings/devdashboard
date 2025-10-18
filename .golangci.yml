@@ -29,8 +29,6 @@ linters-settings:
   staticcheck:
     checks:
       - all
-      - -SA1019 # Temporarily disable deprecation warnings for go-gitlab
-        # TODO: Migrate to gitlab.com/gitlab-org/api/client-go
 
   revive:
     confidence: 0.8
@@ -44,12 +42,6 @@ linters-settings:
 
 issues:
   exclude-rules:
-    # Exclude deprecation warnings for GitLab client until migration
-    - path: pkg/repository/gitlab\.go
-      linters:
-        - staticcheck
-      text: "SA1019.*gitlab"
-
     # Exclude some linters from test files
     - path: _test\.go
       linters:

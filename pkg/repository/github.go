@@ -13,7 +13,7 @@ import (
 
 // GitHubClient implements the Client interface for GitHub repositories
 type GitHubClient struct {
-	client *github.Client
+	api    GitHubAPI
 	config Config
 }
 
@@ -46,7 +46,7 @@ func NewGitHubClient(config Config) (*GitHubClient, error) {
 	}
 
 	return &GitHubClient{
-		client: client,
+		api:    wrapGitHubClient(client),
 		config: config,
 	}, nil
 }
@@ -61,7 +61,7 @@ func (g *GitHubClient) ListFiles(ctx context.Context, owner, repo, ref, path str
 	}
 
 	// Get directory contents from GitHub API
-	_, directoryContent, resp, err := g.client.Repositories.GetContents(ctx, owner, repo, path, opts)
+	_, directoryContent, resp, err := g.api.Repositories.GetContents(ctx, owner, repo, path, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list files from GitHub: %w", err)
 	}
@@ -93,8 +93,8 @@ func (g *GitHubClient) ListFiles(ctx context.Context, owner, repo, ref, path str
 }
 
 // GetRepositoryInfo retrieves metadata about a GitHub repository
-func (g *GitHubClient) GetRepositoryInfo(ctx context.Context, owner, repo string) (*RepositoryInfo, error) {
-	ghRepo, resp, err := g.client.Repositories.Get(ctx, owner, repo)
+func (g *GitHubClient) GetRepositoryInfo(ctx context.Context, owner, repo string) (*Info, error) {
+	ghRepo, resp, err := g.api.Repositories.Get(ctx, owner, repo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository info from GitHub: %w", err)
 	}
@@ -104,7 +104,7 @@ func (g *GitHubClient) GetRepositoryInfo(ctx context.Context, owner, repo string
 		}
 	}()
 
-	repoInfo := &RepositoryInfo{
+	repoInfo := &Info{
 		ID:            fmt.Sprintf("%d", ghRepo.GetID()),
 		Name:          ghRepo.GetName(),
 		FullName:      ghRepo.GetFullName(),
@@ -131,7 +131,7 @@ func (g *GitHubClient) ListFilesRecursive(ctx context.Context, owner, repo, ref 
 
 	// Get the Git tree recursively
 	// This is more efficient than manually traversing directory by directory
-	tree, resp, err := g.client.Git.GetTree(ctx, owner, repo, refToUse, true)
+	tree, resp, err := g.api.Git.GetTree(ctx, owner, repo, refToUse, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository tree from GitHub: %w", err)
 	}
@@ -184,7 +184,7 @@ func (g *GitHubClient) GetFileContent(ctx context.Context, owner, repo, ref, pat
 	}
 
 	// Get file content from GitHub API
-	fileContent, _, resp, err := g.client.Repositories.GetContents(ctx, owner, repo, path, opts)
+	fileContent, _, resp, err := g.api.Repositories.GetContents(ctx, owner, repo, path, opts)
 	if err != nil {
 		return "", fmt.Errorf("failed to get file content from GitHub: %w", err)
 	}
