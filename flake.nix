@@ -24,7 +24,7 @@
 
         version = "0.1.0";
 
-        vendorHash = "sha256-zcz1OFTfPpkkuRK8frv4XOdBAE/mGUEEzmfoLc6ctr8=";
+        vendorHash = "sha256-4DAH6xmx7Ew/7xbkng4s8uH9Hg2qS/+40JNPwD8lKfg=";
 
         devdashboard = pkgs.buildGoModule {
           pname = "devdashboard";
@@ -32,7 +32,7 @@
 
           src = ./.;
 
-          subPackages = [ "cmd/devdashboard" ];
+          #subPackages = [ "cmd/devdashboard" ];
 
           ldflags = [
             "-s"

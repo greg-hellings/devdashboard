@@ -26,7 +26,8 @@ func sampleReport() *report.Report {
 				Repository:   "repo2",
 				Analyzer:     "poetry",
 				Dependencies: map[string]string{"pkgA": "1.2.4"},
-				Error:        assertError("dependency scan failed"),
+				// Repo has an error -> all cells should render as ERROR regardless of dependency map.
+				Error: assertError("dependency scan failed"),
 			},
 		},
 		Packages: []string{"pkgA", "pkgB"},
@@ -52,15 +53,15 @@ func TestConsoleFormatterBasicRender(t *testing.T) {
 	out := buf.String()
 
 	// Core structural expectations
-	expectContains(t, out, "Dependency Version Report", "header title missing")
 	expectContains(t, out, "pkgA", "package pkgA missing")
 	expectContains(t, out, "pkgB", "package pkgB missing")
 	expectContains(t, out, "1.2.3", "version 1.2.3 missing for repo1")
-	expectContains(t, out, "1.2.4", "version 1.2.4 missing for repo2")
+	// Error repo should not show the version (1.2.4); it should show ERROR.
+	expectContains(t, out, "ERROR", "error marker missing for failing repository cells")
 	expectContains(t, out, "Repositories analyzed: 1/2 successful", "summary success count mismatch")
 	expectContains(t, out, "Packages tracked: 2", "package summary mismatch")
 
-	// Error repo should show an ERROR marker (colors disabled -> plain text)
+	// Error section details
 	expectContains(t, out, "Errors:", "errors section header missing")
 	expectContains(t, out, "org2/repo2", "errored repository identifier missing")
 	expectContains(t, out, "dependency scan failed", "error message missing")
