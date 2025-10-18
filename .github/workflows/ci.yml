@@ -21,24 +21,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Install Nix
+        uses: cachix/install-nix-action@v26
         with:
-          python-version: "3.12"
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
 
-      - name: Install pre-commit
-        run: pip install pre-commit
-
-      - name: Cache pre-commit hooks
-        uses: actions/cache@v4
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v16
         with:
-          path: ~/.cache/pre-commit
-          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
-          restore-keys: |
-            pre-commit-
+          name: devdashboard
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          skipPush: ${{ secrets.CACHIX_AUTH_TOKEN == '' }}
 
-      - name: Run pre-commit
-        run: pre-commit run --all-files --show-diff-on-failure
+      - name: Run pre-commit via Nix
+        run: nix develop --command pre-commit run --all-files --show-diff-on-failure
 
   go-tests:
     name: Go tests

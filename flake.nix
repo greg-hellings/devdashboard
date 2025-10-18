@@ -194,7 +194,9 @@
             echo "  nix build           - Build with Nix"
             echo "  nix flake check     - Run all checks"
             echo ""
-            echo "Pre-commit hooks are installed. Run 'pre-commit run --all-files' to check."
+            echo "Pre-commit hooks are auto-installed in this shell."
+            echo "Run 'pre-commit run --all-files' to check all files."
+            echo "Note: In CI, use 'nix develop --command pre-commit run --all-files'"
             echo ""
           '';
         };
