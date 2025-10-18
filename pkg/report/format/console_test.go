@@ -52,10 +52,12 @@ func TestConsoleFormatterBasicRender(t *testing.T) {
 
 	out := buf.String()
 
-	// Core structural expectations
-	expectContains(t, out, "pkgA", "package pkgA missing")
-	expectContains(t, out, "pkgB", "package pkgB missing")
-	expectContains(t, out, "1.2.3", "version 1.2.3 missing for repo1")
+	// Core structural expectations (pivoted layout: repositories = rows, packages = columns)
+	expectContains(t, out, "org1/repo1", "repository org1/repo1 missing")
+	expectContains(t, out, "org2/repo2", "repository org2/repo2 missing")
+	expectContains(t, out, "PKGA", "package header pkgA missing")
+	expectContains(t, out, "PKGB", "package header pkgB missing")
+	expectContains(t, out, "1.2.3", "version 1.2.3 missing for pkgA in org1/repo1 row")
 	// Error repo should not show the version (1.2.4); it should show ERROR.
 	expectContains(t, out, "ERROR", "error marker missing for failing repository cells")
 	expectContains(t, out, "Repositories analyzed: 1/2 successful", "summary success count mismatch")

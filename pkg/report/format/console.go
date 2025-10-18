@@ -16,19 +16,15 @@ import (
 	"golang.org/x/term"
 )
 
-// ConsoleFormatter renders a dependency Report in a terminal-friendly table
-// that attempts to adapt to the current console width. It replaces the
-// previous ad-hoc printf formatting logic.
+// ConsoleFormatter renders a dependency Report in a terminal-friendly table.
+// Pivoted layout (repositories as rows, packages as columns).
 type ConsoleFormatter struct {
-	// MaxPackageColWidth constrains the package name column. If 0, a dynamic
-	// width is chosen based on terminal width (with a sane minimum).
-	MaxPackageColWidth int
-
-	// MaxRepoColWidth constrains each repository column (version cells).
-	// If 0, a dynamic width is chosen. Set this higher if versions frequently
-	// include long qualifiers (e.g. pre-release tags).
+	// MaxRepoColWidth constrains the repository identifier column width (first column).
+	// If 0, width is chosen dynamically.
 	MaxRepoColWidth int
-
+	// MaxPackageColWidth constrains each package column width (version cells).
+	// If 0, a dynamic width distribution is applied.
+	MaxPackageColWidth int
 	// EnableColors toggles ANSI color output for status cells.
 	EnableColors bool
 }
@@ -36,8 +32,8 @@ type ConsoleFormatter struct {
 // NewConsoleFormatter creates a formatter with sensible defaults.
 func NewConsoleFormatter() *ConsoleFormatter {
 	return &ConsoleFormatter{
-		MaxPackageColWidth: 0,
 		MaxRepoColWidth:    0,
+		MaxPackageColWidth: 0,
 		EnableColors:       true,
 	}
 }
@@ -55,28 +51,26 @@ func (f *ConsoleFormatter) Render(rpt *report.Report, writer io.Writer) error {
 	tw.Style().Options.SeparateColumns = false
 	tw.Style().Options.DrawBorder = true
 
-	// Header row: Package + each repository
-	header := table.Row{"Package"}
-	for _, repo := range rpt.Repositories {
-		header = append(header, repo.GetRepoIdentifier())
+	// Header row: Repository + each package
+	pkgs := append([]string(nil), rpt.Packages...)
+	sort.Strings(pkgs)
+	header := table.Row{"Repository"}
+	for _, pkg := range pkgs {
+		header = append(header, pkg)
 	}
 	tw.AppendHeader(header)
 
 	// Determine dynamic column widths
-	colConfigs := f.buildColumnConfig(rpt, writer)
+	colConfigs := f.buildColumnConfig(rpt, writer, pkgs)
 	if len(colConfigs) > 0 {
 		tw.SetColumnConfigs(colConfigs)
 	}
 
-	// Sort packages for deterministic output
-	pkgs := append([]string(nil), rpt.Packages...)
-	sort.Strings(pkgs)
-
-	for _, pkg := range pkgs {
-		row := table.Row{pkg}
-		for _, repo := range rpt.Repositories {
-			cell := f.versionCell(&repo, pkg)
-			row = append(row, cell)
+	// Rows: each repository with versions per package
+	for _, repo := range rpt.Repositories {
+		row := table.Row{repo.GetRepoIdentifier()}
+		for _, pkg := range pkgs {
+			row = append(row, f.versionCell(&repo, pkg))
 		}
 		tw.AppendRow(row)
 	}
@@ -138,97 +132,92 @@ func (f *ConsoleFormatter) versionCell(repo *report.RepositoryReport, pkg string
 }
 
 // buildColumnConfig creates per-column sizing to fit the terminal.
-func (f *ConsoleFormatter) buildColumnConfig(rpt *report.Report, w io.Writer) []table.ColumnConfig {
+func (f *ConsoleFormatter) buildColumnConfig(rpt *report.Report, w io.Writer, pkgs []string) []table.ColumnConfig {
 	termWidth := detectTerminalWidth(w)
 	if termWidth <= 0 {
-		// Fallback: do not constrain if width unknown
 		return nil
 	}
 
-	// Guard rails
 	if termWidth < 60 {
 		termWidth = 60
 	}
 
-	repoCount := len(rpt.Repositories)
-	if repoCount == 0 {
+	packageCount := len(pkgs)
+	if packageCount == 0 {
 		return nil
 	}
 
-	// Choose package column width
-	pkgColWidth := f.MaxPackageColWidth
-	if pkgColWidth <= 0 {
-		pkgColWidth = dynamicPackageWidth(rpt, termWidth, repoCount)
-		if pkgColWidth < 15 {
-			pkgColWidth = 15
+	// First column (repository identifier) width
+	repoIDColWidth := f.MaxRepoColWidth
+	if repoIDColWidth <= 0 {
+		repoIDColWidth = dynamicRepoIDWidth(rpt, termWidth, packageCount)
+		if repoIDColWidth < 15 {
+			repoIDColWidth = 15
 		}
 	}
 
-	repoColWidth := f.MaxRepoColWidth
-	if repoColWidth <= 0 {
-		// Rough allocation: leave space for borders & package col
-		remaining := termWidth - pkgColWidth - 3 /* separators & borders fudge */
-		per := remaining / repoCount
+	// Remaining width for package columns
+	pkgColWidth := f.MaxPackageColWidth
+	if pkgColWidth <= 0 {
+		remaining := termWidth - repoIDColWidth - 3
+		per := remaining / packageCount
 		if per < 8 {
 			per = 8
 		}
 		if per > 24 {
 			per = 24
 		}
-		repoColWidth = per
+		pkgColWidth = per
 	}
 
 	configs := []table.ColumnConfig{
 		{
 			Number:      1,
-			WidthMax:    pkgColWidth,
-			WidthMin:    minInt(10, pkgColWidth),
-			Transformer: truncTransformer(pkgColWidth),
+			WidthMax:    repoIDColWidth,
+			WidthMin:    minInt(10, repoIDColWidth),
+			Transformer: truncTransformer(repoIDColWidth),
 		},
 	}
 
-	// Columns are 1-based; repository columns start at 2
-	for i := 0; i < repoCount; i++ {
+	for i := 0; i < packageCount; i++ {
 		configs = append(configs, table.ColumnConfig{
 			Number:      i + 2,
-			WidthMax:    repoColWidth,
-			WidthMin:    minInt(5, repoColWidth),
-			Transformer: truncTransformer(repoColWidth),
+			WidthMax:    pkgColWidth,
+			WidthMin:    minInt(5, pkgColWidth),
+			Transformer: truncTransformer(pkgColWidth),
 		})
 	}
 
 	return configs
 }
 
-// dynamicPackageWidth estimates a good package column width.
-func dynamicPackageWidth(rpt *report.Report, termWidth, repoCount int) int {
-	if repoCount == 0 {
+// dynamicRepoIDWidth estimates a good repository identifier column width.
+func dynamicRepoIDWidth(rpt *report.Report, termWidth, packageCount int) int {
+	if packageCount == 0 {
 		return termWidth
 	}
-
-	// Compute max observed package length (capped)
-	maxPkgLen := 0
-	for _, p := range rpt.Packages {
-		l := utf8.RuneCountInString(p)
-		if l > maxPkgLen {
-			maxPkgLen = l
+	maxLen := 0
+	for _, r := range rpt.Repositories {
+		id := r.GetRepoIdentifier()
+		l := utf8.RuneCountInString(id)
+		if l > maxLen {
+			maxLen = l
 		}
-		if maxPkgLen >= 50 { // upper bound
+		if maxLen >= 60 {
 			break
 		}
 	}
-
-	// Reserve minimum space for repo columns
-	minPerRepo := 8
-	reserved := repoCount * minPerRepo
+	// Reserve space for package columns (heuristic similar to previous)
+	minPerPkg := 8
+	reserved := packageCount * minPerPkg
 	available := termWidth - reserved - 3
 	if available < 15 {
 		available = 15
 	}
-	if maxPkgLen > available {
+	if maxLen > available {
 		return available
 	}
-	return maxPkgLen
+	return maxLen
 }
 
 // detectTerminalWidth attempts to get terminal width if writer is a file (stdout/stderr).
@@ -238,7 +227,6 @@ func detectTerminalWidth(w io.Writer) int {
 			return width
 		}
 	}
-	// Try stdout as fallback
 	if width, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
 		return width
 	}
@@ -293,8 +281,6 @@ func minInt(a, b int) int {
 	}
 	return b
 }
-
-// RenderConsole renders a Report to the provided writer using the console formatter.
 
 // RenderConsole renders the provided Report to the writer using the default console formatter.
 func RenderConsole(rpt *report.Report, w io.Writer) error {
