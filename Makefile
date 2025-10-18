@@ -63,7 +63,7 @@ install:
 ## test: Run all tests
 test:
 	@echo "Running tests..."
-	$(GOTEST) -v ./...
+	$(GOTEST) --cover -v ./pkg/...
 
 ## test-coverage: Run tests with coverage report
 test-coverage:
