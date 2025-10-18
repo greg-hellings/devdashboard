@@ -204,7 +204,20 @@
 
         checks = {
           # Build once
-          build = devdashboard.overrideAttrs { doCheck = true; };
+          build = devdashboard;
+          test =
+            pkgs.runCommand "go-test"
+              {
+                buildInputs = [
+                  pkgs.go
+                ];
+              }
+              ''
+                export HOME=$(mktemp -d)
+                cp -r ${./.} src
+                cd src
+                go test ./... 2>&1 | tee $out
+              '';
 
           # Vet using vendored modules
           vet =
