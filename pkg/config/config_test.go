@@ -242,7 +242,7 @@ providers:
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "config.yaml")
 
-			err := os.WriteFile(tmpFile, []byte(tt.content), 0644)
+			err := os.WriteFile(tmpFile, []byte(tt.content), 0600)
 			if err != nil {
 				t.Fatalf("Failed to create temp file: %v", err)
 			}

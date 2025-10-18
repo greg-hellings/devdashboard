@@ -1,3 +1,7 @@
+// Package dependencies contains types and interfaces for discovering and analyzing
+// dependency declaration files across repository providers. It defines analyzers
+// that can enumerate candidate dependency files and extract structured dependency
+// information for reporting.
 package dependencies
 
 import (

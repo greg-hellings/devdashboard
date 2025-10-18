@@ -1,3 +1,7 @@
+// Package repository provides abstractions and client interfaces for interacting
+// with source code hosting providers (e.g., GitHub, GitLab). It defines common
+// data structures for file and repository metadata plus a generic Client
+// interface implemented by provider-specific clients.
 package repository
 
 import (
@@ -15,8 +19,8 @@ type FileInfo struct {
 	URL  string // URL to the file in the web interface
 }
 
-// RepositoryInfo contains metadata about a repository
-type RepositoryInfo struct {
+// Info contains metadata about a repository.
+type Info struct {
 	ID            string // Repository ID
 	Name          string // Repository name
 	FullName      string // Full name (owner/repo)
@@ -24,6 +28,12 @@ type RepositoryInfo struct {
 	DefaultBranch string // Default branch name
 	URL           string // Web URL to the repository
 }
+
+// RepositoryInfo is kept for backward compatibility.
+// Deprecated: use Info instead.
+//
+//nolint:revive // backward compatibility alias; external code may still reference RepositoryInfo
+type RepositoryInfo = Info
 
 // Client defines the interface for interacting with git repository providers
 // This interface abstracts operations across different providers (GitHub, GitLab, etc.)

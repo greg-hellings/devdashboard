@@ -1,3 +1,6 @@
+// Package repository provides clients for interacting with various source code hosting platforms
+// including GitHub and GitLab. It offers a unified interface for accessing repository metadata,
+// file listings, and file contents.
 package repository
 
 import (
@@ -62,7 +65,12 @@ func (g *GitHubClient) ListFiles(ctx context.Context, owner, repo, ref, path str
 	if err != nil {
 		return nil, fmt.Errorf("failed to list files from GitHub: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			// Log the error but don't override the primary error
+			fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+		}
+	}()
 
 	// Convert GitHub's RepositoryContent to our FileInfo format
 	files := make([]FileInfo, 0, len(directoryContent))
@@ -90,7 +98,11 @@ func (g *GitHubClient) GetRepositoryInfo(ctx context.Context, owner, repo string
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository info from GitHub: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+		}
+	}()
 
 	repoInfo := &RepositoryInfo{
 		ID:            fmt.Sprintf("%d", ghRepo.GetID()),
@@ -123,7 +135,11 @@ func (g *GitHubClient) ListFilesRecursive(ctx context.Context, owner, repo, ref 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository tree from GitHub: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+		}
+	}()
 
 	// Filter out directories and convert to FileInfo
 	files := make([]FileInfo, 0)
@@ -172,7 +188,11 @@ func (g *GitHubClient) GetFileContent(ctx context.Context, owner, repo, ref, pat
 	if err != nil {
 		return "", fmt.Errorf("failed to get file content from GitHub: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+		}
+	}()
 
 	// Check if we got a file (not a directory)
 	if fileContent == nil {

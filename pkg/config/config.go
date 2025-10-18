@@ -1,8 +1,13 @@
+// Package config provides structures and helper functions for loading and validating
+// DevDashboard configuration files from YAML sources. It applies provider-level defaults,
+// performs basic validation, and returns a structured configuration for further processing.
 package config
 
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -42,7 +47,23 @@ type RepoConfig struct {
 
 // LoadFromFile reads a YAML configuration file and returns the parsed Config
 func LoadFromFile(filename string) (*Config, error) {
-	data, err := os.ReadFile(filename)
+	// Sanitize and validate filename to mitigate G304 (file inclusion via variable).
+	// Allow absolute paths (needed for temp test files) but still normalize and
+	// enforce extension and traversal protections.
+	cleaned := filepath.Clean(filename)
+
+	// Prevent path traversal attempts.
+	if strings.Contains(cleaned, ".."+string(os.PathSeparator)) {
+		return nil, fmt.Errorf("path traversal detected: %s", cleaned)
+	}
+
+	// Enforce allowed file extensions.
+	ext := strings.ToLower(filepath.Ext(cleaned))
+	if ext != ".yaml" && ext != ".yml" {
+		return nil, fmt.Errorf("unsupported config file extension: %s", ext)
+	}
+
+	data, err := os.ReadFile(cleaned)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
