@@ -1,12 +1,18 @@
 # golangci-lint configuration for DevDashboard
 # https://golangci-lint.run/usage/configuration/
 
-version: 2
+version: "2"
 
 run:
   timeout: 5m
   tests: true
   modules-download-mode: readonly
+
+formatters:
+  enable:
+    - gofmt # Check whether code was gofmt-ed
+    - goimports # Check import statements are formatted correctly
+  settings: {}
 
 linters:
   enable:
@@ -19,57 +25,48 @@ linters:
     - misspell # Finds commonly misspelled English words
     - unconvert # Remove unnecessary type conversions
     - revive # Fast, configurable, extensible, flexible, and beautiful linter for Go
-
-formatters:
-  enable:
-    - gofmt # Check whether code was gofmt-ed
-    - goimports # Check import statements are formatted correctly
-
-linters-settings:
-  staticcheck:
-    checks:
-      - all
-
-  revive:
-    confidence: 0.8
+  settings:
+    staticcheck:
+      checks:
+        - all
+    revive:
+      confidence: 0.8
+      rules:
+        - name: exported
+          severity: warning
+        - name: package-comments
+          severity: warning
+  exclusions:
     rules:
-      - name: exported
-        severity: warning
-        disabled: false
-      - name: package-comments
-        severity: warning
-        disabled: false
+      # Exclude some linters from test files
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+      # Allow unused code in test helpers
+      - path: test_helpers\.go
+        linters:
+          - unused
+      # Exclude unparam from cmd package (main functions often have unused error returns)
+      - path: cmd/
+        linters:
+          - unparam
+      # Exclude revive stuttering warning for RepositoryInfo
+      - path: pkg/repository/repository\.go
+        linters:
+          - revive
+        text: stutters
 
 issues:
-  exclude-rules:
-    # Exclude some linters from test files
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-
-    # Allow unused code in test helpers
-    - path: test_helpers\.go
-      linters:
-        - unused
-
-    # Exclude unparam from cmd package (main functions often have unused error returns)
-    - path: cmd/
-      linters:
-        - unparam
-
-    # Exclude revive stuttering warning for RepositoryInfo (common Go pattern)
-    - path: pkg/repository/repository\.go
-      linters:
-        - revive
-      text: "stutters"
-
   max-issues-per-linter: 0
   max-same-issues: 0
   uniq-by-line: true
 
 output:
   formats:
-    colored-line-number:
+    text:
       path: stdout
+      colors: true
+      print-issued-lines: true
+      print-linter-name: true
   show-stats: true
