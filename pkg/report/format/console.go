@@ -1,3 +1,5 @@
+// Package format provides console rendering utilities for dependency reports.
+// It adapts column widths to the terminal and supports color and truncation.
 package format
 
 import (
@@ -90,18 +92,32 @@ func (f *ConsoleFormatter) Render(rpt *report.Report, writer io.Writer) error {
 		}
 	}
 
-	fmt.Fprintln(writer)
-	fmt.Fprintf(writer, "Summary:\n")
-	fmt.Fprintf(writer, "  Repositories analyzed: %d/%d successful\n", successCount, len(rpt.Repositories))
-	fmt.Fprintf(writer, "  Packages tracked: %d\n", len(rpt.Packages))
+	if _, err := fmt.Fprintln(writer); err != nil {
+		return fmt.Errorf("failed writing summary spacer newline: %w", err)
+	}
+	if _, err := fmt.Fprintf(writer, "Summary:\n"); err != nil {
+		return fmt.Errorf("failed writing summary header: %w", err)
+	}
+	if _, err := fmt.Fprintf(writer, "  Repositories analyzed: %d/%d successful\n", successCount, len(rpt.Repositories)); err != nil {
+		return fmt.Errorf("failed writing repositories analyzed line: %w", err)
+	}
+	if _, err := fmt.Fprintf(writer, "  Packages tracked: %d\n", len(rpt.Packages)); err != nil {
+		return fmt.Errorf("failed writing packages tracked line: %w", err)
+	}
 
 	if rpt.HasErrors() {
-		fmt.Fprintln(writer)
-		fmt.Fprintf(writer, "Errors:\n")
+		if _, err := fmt.Fprintln(writer); err != nil {
+			return fmt.Errorf("failed writing errors spacer newline: %w", err)
+		}
+		if _, err := fmt.Fprintf(writer, "Errors:\n"); err != nil {
+			return fmt.Errorf("failed writing errors header: %w", err)
+		}
 		for _, rr := range rpt.Repositories {
 			if rr.Error != nil {
 				name := rr.GetRepoIdentifier()
-				fmt.Fprintf(writer, "  %-30s %v\n", name, rr.Error)
+				if _, err := fmt.Fprintf(writer, "  %-30s %v\n", name, rr.Error); err != nil {
+					return fmt.Errorf("failed writing error line for %s: %w", name, err)
+				}
 			}
 		}
 	}
@@ -278,8 +294,9 @@ func minInt(a, b int) int {
 	return b
 }
 
-// Convenience function for callers that just want a one-liner:
-// format.RenderConsole(report, os.Stdout)
+// RenderConsole renders a Report to the provided writer using the console formatter.
+
+// RenderConsole renders the provided Report to the writer using the default console formatter.
 func RenderConsole(rpt *report.Report, w io.Writer) error {
 	return NewConsoleFormatter().Render(rpt, w)
 }

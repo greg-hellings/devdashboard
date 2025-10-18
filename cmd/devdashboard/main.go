@@ -1,3 +1,6 @@
+// Package main provides the CLI entrypoint for DevDashboard.
+// It initializes logging and defines Cobra commands for generating
+// dependency reports in console or JSON formats.
 package main
 
 import (
@@ -188,7 +191,11 @@ func runDependencyReport(cmd *cobra.Command, args []string) error {
 		}
 		outWriter = f
 	}
-	defer outWriter.Close()
+	defer func() {
+		if cerr := outWriter.Close(); cerr != nil {
+			slog.Debug("Failed to close output writer", "error", cerr)
+		}
+	}()
 
 	switch strings.ToLower(depFlags.outputFormat) {
 	case "console":
@@ -218,7 +225,9 @@ func runDependencyReport(cmd *cobra.Command, args []string) error {
 
 // renderConsole renders the report using the console formatter.
 func renderConsole(rpt *report.Report, w ioWriter) error {
-	fmt.Fprintf(w, "Dependency Version Report (format=console)\n\n")
+	if _, err := fmt.Fprintf(w, "Dependency Version Report (format=console)\n\n"); err != nil {
+		return fmt.Errorf("failed to write console header: %w", err)
+	}
 
 	formatter := consolefmt.NewConsoleFormatter()
 	formatter.EnableColors = !depFlags.noColor

@@ -32,8 +32,6 @@
 
           src = ./.;
 
-          #subPackages = [ "cmd/devdashboard" ];
-
           ldflags = [
             "-s"
             "-w"
