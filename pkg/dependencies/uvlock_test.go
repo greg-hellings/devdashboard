@@ -498,20 +498,17 @@ type = "registry"
 			},
 		},
 		{
-			name: "handles packages with dev-dependencies field",
+			name: "handles packages with resolution markers for dev",
 			content: `version = 1
 requires-python = ">=3.8"
 
 [[package]]
 name = "test-pkg"
 version = "1.0.0"
+resolution-markers = "extra == 'dev'"
 
 [package.source]
 type = "registry"
-
-[[package.dev-dependencies]]
-name = "pytest"
-version = ">=7.0"
 `,
 			wantNumDeps: 1,
 			checkDeps: []Dependency{

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 )
 
@@ -81,6 +82,12 @@ func (p *PipfileAnalyzer) AnalyzeDependencies(ctx context.Context, owner, repo, 
 		deps, err := p.analyzeFile(ctx, owner, repo, ref, file.Path, config)
 		if err != nil {
 			// Don't fail completely if one file fails, just skip it
+			slog.Debug("Failed to analyze Pipfile.lock file",
+				"file", file.Path,
+				"owner", owner,
+				"repo", repo,
+				"ref", ref,
+				"error", err)
 			continue
 		}
 		result[file.Path] = deps
@@ -100,6 +107,9 @@ func (p *PipfileAnalyzer) analyzeFile(ctx context.Context, owner, repo, ref, fil
 	// Parse the Pipfile.lock file
 	dependencies, err := p.parsePipfileLock(content)
 	if err != nil {
+		slog.Debug("Failed to parse Pipfile.lock content",
+			"file", filePath,
+			"error", err)
 		return nil, fmt.Errorf("failed to parse %s: %w", filePath, err)
 	}
 

@@ -3,6 +3,7 @@ package dependencies
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -82,6 +83,12 @@ func (u *UvLockAnalyzer) AnalyzeDependencies(ctx context.Context, owner, repo, r
 		deps, err := u.analyzeFile(ctx, owner, repo, ref, file.Path, config)
 		if err != nil {
 			// Don't fail completely if one file fails, just skip it
+			slog.Debug("Failed to analyze uv.lock file",
+				"file", file.Path,
+				"owner", owner,
+				"repo", repo,
+				"ref", ref,
+				"error", err)
 			continue
 		}
 		result[file.Path] = deps
@@ -101,6 +108,9 @@ func (u *UvLockAnalyzer) analyzeFile(ctx context.Context, owner, repo, ref, file
 	// Parse the uv.lock file
 	dependencies, err := u.parseUvLock(content)
 	if err != nil {
+		slog.Debug("Failed to parse uv.lock content",
+			"file", filePath,
+			"error", err)
 		return nil, fmt.Errorf("failed to parse %s: %w", filePath, err)
 	}
 

@@ -3,6 +3,7 @@ package dependencies
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -83,7 +84,12 @@ func (p *PoetryAnalyzer) AnalyzeDependencies(ctx context.Context, owner, repo, r
 		if err != nil {
 			// Don't fail completely if one file fails, just skip it
 			// Caller can check for incomplete results
-			fmt.Println("Non-fatal error while analyzing file: ", err)
+			slog.Debug("Failed to analyze poetry.lock file",
+				"file", file.Path,
+				"owner", owner,
+				"repo", repo,
+				"ref", ref,
+				"error", err)
 			continue
 		}
 		result[file.Path] = deps
@@ -103,6 +109,9 @@ func (p *PoetryAnalyzer) analyzeFile(ctx context.Context, owner, repo, ref, file
 	// Parse the poetry.lock file
 	dependencies, err := p.parsePoetryLock(content)
 	if err != nil {
+		slog.Debug("Failed to parse poetry.lock content",
+			"file", filePath,
+			"error", err)
 		return nil, fmt.Errorf("failed to parse %s: %w", filePath, err)
 	}
 
