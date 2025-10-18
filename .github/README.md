@@ -255,8 +255,8 @@ Add these to your README.md:
 
 **Pre-commit fails:**
 ```bash
-# Run locally
-pre-commit run --all-files
+# Run locally (requires Nix)
+nix develop --command pre-commit run --all-files
 ```
 
 **Go tests fail:**
