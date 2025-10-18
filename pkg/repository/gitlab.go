@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/xanzy/go-gitlab"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
 // GitLabClient implements the Client interface for GitLab repositories
 type GitLabClient struct {
-	client *gitlab.Client //nolint:staticcheck // TODO: migrate to gitlab.com/gitlab-org/api/client-go
+	api    GitLabAPI
 	config Config
 }
 
@@ -22,7 +22,7 @@ type GitLabClient struct {
 // If no token is provided, the client will only have access to public repositories
 // If a custom BaseURL is provided, it will be used for self-hosted GitLab instances
 func NewGitLabClient(config Config) (*GitLabClient, error) {
-	var client *gitlab.Client //nolint:staticcheck // TODO: migrate to gitlab.com/gitlab-org/api/client-go
+	var client *gitlab.Client
 	var err error
 
 	// Configure client options
@@ -35,9 +35,9 @@ func NewGitLabClient(config Config) (*GitLabClient, error) {
 
 	// Create client with authentication if token is provided
 	if config.Token != "" {
-		client, err = gitlab.NewClient(config.Token, opts...) //nolint:staticcheck // deprecated API, migration planned
+		client, err = gitlab.NewClient(config.Token, opts...)
 	} else {
-		client, err = gitlab.NewClient("", opts...) //nolint:staticcheck // deprecated API, migration planned
+		client, err = gitlab.NewClient("", opts...)
 	}
 
 	if err != nil {
@@ -45,7 +45,7 @@ func NewGitLabClient(config Config) (*GitLabClient, error) {
 	}
 
 	return &GitLabClient{
-		client: client,
+		api:    wrapGitLabClient(client),
 		config: config,
 	}, nil
 }
@@ -58,8 +58,8 @@ func (g *GitLabClient) ListFiles(ctx context.Context, owner, repo, ref, path str
 
 	// Configure options for listing tree
 	opts := &gitlab.ListTreeOptions{
-		Path: gitlab.String(path), //nolint:staticcheck // deprecated helper, migration planned
-		Ref:  gitlab.String(ref),  //nolint:staticcheck // deprecated helper, migration planned
+		Path: gitlab.Ptr(path),
+		Ref:  gitlab.Ptr(ref),
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
 		},
@@ -71,7 +71,7 @@ func (g *GitLabClient) ListFiles(ctx context.Context, owner, repo, ref, path str
 	}
 
 	// Get repository tree from GitLab API
-	trees, resp, err := g.client.Repositories.ListTree(projectID, opts, gitlab.WithContext(ctx))
+	trees, resp, err := g.api.Repositories.ListTree(projectID, opts, gitlab.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list files from GitLab: %w", err)
 	}
@@ -115,10 +115,10 @@ func (g *GitLabClient) ListFiles(ctx context.Context, owner, repo, ref, path str
 }
 
 // GetRepositoryInfo retrieves metadata about a GitLab repository
-func (g *GitLabClient) GetRepositoryInfo(ctx context.Context, owner, repo string) (*RepositoryInfo, error) {
+func (g *GitLabClient) GetRepositoryInfo(ctx context.Context, owner, repo string) (*Info, error) {
 	projectID := fmt.Sprintf("%s/%s", owner, repo)
 
-	project, resp, err := g.client.Projects.GetProject(projectID, nil, gitlab.WithContext(ctx))
+	project, resp, err := g.api.Projects.GetProject(projectID, nil, gitlab.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository info from GitLab: %w", err)
 	}
@@ -128,7 +128,7 @@ func (g *GitLabClient) GetRepositoryInfo(ctx context.Context, owner, repo string
 		}
 	}()
 
-	repoInfo := &RepositoryInfo{
+	repoInfo := &Info{
 		ID:            fmt.Sprintf("%d", project.ID),
 		Name:          project.Name,
 		FullName:      project.PathWithNamespace,
@@ -157,8 +157,8 @@ func (g *GitLabClient) ListFilesRecursive(ctx context.Context, owner, repo, ref 
 
 	// Get the repository tree recursively
 	opts := &gitlab.ListTreeOptions{
-		Recursive: gitlab.Bool(true),       //nolint:staticcheck // deprecated helper, migration planned
-		Ref:       gitlab.String(refToUse), //nolint:staticcheck // deprecated helper, migration planned
+		Recursive: gitlab.Ptr(true),
+		Ref:       gitlab.Ptr(refToUse),
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
 		},
@@ -171,7 +171,7 @@ func (g *GitLabClient) ListFilesRecursive(ctx context.Context, owner, repo, ref 
 	for {
 		opts.Page = page
 
-		trees, resp, err := g.client.Repositories.ListTree(projectID, opts, gitlab.WithContext(ctx))
+		trees, resp, err := g.api.Repositories.ListTree(projectID, opts, gitlab.WithContext(ctx))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get repository tree from GitLab: %w", err)
 		}
@@ -233,10 +233,10 @@ func (g *GitLabClient) GetFileContent(ctx context.Context, owner, repo, ref, pat
 
 	// Get file content from GitLab API
 	opts := &gitlab.GetFileOptions{
-		Ref: gitlab.String(refToUse), //nolint:staticcheck // deprecated helper, migration planned
+		Ref: gitlab.Ptr(refToUse),
 	}
 
-	file, resp, err := g.client.RepositoryFiles.GetFile(projectID, path, opts, gitlab.WithContext(ctx))
+	file, resp, err := g.api.RepositoryFiles.GetFile(projectID, path, opts, gitlab.WithContext(ctx))
 	if err != nil {
 		return "", fmt.Errorf("failed to get file content from GitLab: %w", err)
 	}

@@ -13,11 +13,11 @@ type mockRepoClient struct {
 	err     error
 }
 
-func (m *mockRepoClient) GetRepositoryInfo(_ context.Context, owner, repo string) (*repository.RepositoryInfo, error) {
+func (m *mockRepoClient) GetRepositoryInfo(_ context.Context, owner, repo string) (*repository.Info, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	return &repository.RepositoryInfo{
+	return &repository.Info{
 		ID:            "test-repo",
 		Name:          repo,
 		FullName:      owner + "/" + repo,

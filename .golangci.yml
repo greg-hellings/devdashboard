@@ -1,83 +1,32 @@
-# golangci-lint configuration for DevDashboard
-# https://golangci-lint.run/usage/configuration/
-
-version: 2
+# DevDashboard golangci-lint minimal v2 configuration
+version: "2"
 
 run:
-  timeout: 5m
+  timeout: 3m
   tests: true
-  modules-download-mode: readonly
-
-linters:
-  enable:
-    - errcheck # Check for unchecked errors
-    - govet # Examine Go source code and report suspicious constructs
-    - ineffassign # Detect ineffectual assignments
-    - staticcheck # Go static analysis (includes gosimple)
-    - unused # Check for unused constants, variables, functions and types
-    - gosec # Security issues
-    - misspell # Finds commonly misspelled English words
-    - unconvert # Remove unnecessary type conversions
-    - revive # Fast, configurable, extensible, flexible, and beautiful linter for Go
 
 formatters:
   enable:
-    - gofmt # Check whether code was gofmt-ed
-    - goimports # Check import statements are formatted correctly
+    - gofmt
+    - goimports
+  settings: {}
 
-linters-settings:
-  staticcheck:
-    checks:
-      - all
-      - -SA1019 # Temporarily disable deprecation warnings for go-gitlab
-        # TODO: Migrate to gitlab.com/gitlab-org/api/client-go
-
-  revive:
-    confidence: 0.8
-    rules:
-      - name: exported
-        severity: warning
-        disabled: false
-      - name: package-comments
-        severity: warning
-        disabled: false
-
-issues:
-  exclude-rules:
-    # Exclude deprecation warnings for GitLab client until migration
-    - path: pkg/repository/gitlab\.go
-      linters:
-        - staticcheck
-      text: "SA1019.*gitlab"
-
-    # Exclude some linters from test files
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-
-    # Allow unused code in test helpers
-    - path: test_helpers\.go
-      linters:
-        - unused
-
-    # Exclude unparam from cmd package (main functions often have unused error returns)
-    - path: cmd/
-      linters:
-        - unparam
-
-    # Exclude revive stuttering warning for RepositoryInfo (common Go pattern)
-    - path: pkg/repository/repository\.go
-      linters:
-        - revive
-      text: "stutters"
-
-  max-issues-per-linter: 0
-  max-same-issues: 0
-  uniq-by-line: true
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - revive
+  settings:
+    staticcheck:
+      checks:
+        - all
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
 
 output:
   formats:
-    colored-line-number:
-      path: stdout
-  show-stats: true
+    text:
+      colors: true

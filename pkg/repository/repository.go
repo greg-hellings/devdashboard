@@ -29,12 +29,6 @@ type Info struct {
 	URL           string // Web URL to the repository
 }
 
-// RepositoryInfo is kept for backward compatibility.
-// Deprecated: use Info instead.
-//
-//nolint:revive // backward compatibility alias; external code may still reference RepositoryInfo
-type RepositoryInfo = Info
-
 // Client defines the interface for interacting with git repository providers
 // This interface abstracts operations across different providers (GitHub, GitLab, etc.)
 type Client interface {
@@ -58,7 +52,7 @@ type Client interface {
 	// Returns:
 	//   - RepositoryInfo containing repository metadata
 	//   - Error if the operation fails
-	GetRepositoryInfo(ctx context.Context, owner, repo string) (*RepositoryInfo, error)
+	GetRepositoryInfo(ctx context.Context, owner, repo string) (*Info, error)
 
 	// ListFilesRecursive retrieves all files recursively in a repository
 	// This is a convenience method that traverses the entire repository tree

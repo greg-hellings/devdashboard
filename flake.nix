@@ -24,13 +24,13 @@
 
         version = "0.1.0";
 
+        vendorHash = "sha256-zcz1OFTfPpkkuRK8frv4XOdBAE/mGUEEzmfoLc6ctr8=";
+
         devdashboard = pkgs.buildGoModule {
           pname = "devdashboard";
-          inherit version;
+          inherit version vendorHash;
 
           src = ./.;
-
-          vendorHash = "sha256-nDRZ4tafrMUFHJK9r4hmlvrC8z4aAg6+wIyY7ZcvQvU=";
 
           subPackages = [ "cmd/devdashboard" ];
 
@@ -202,93 +202,60 @@
           '';
         };
 
-        checks = {
-          # Build check
-          build = devdashboard;
+        checks =
+          let
+            # Helper to run tests without re-fetching modules.
+            # Reuses the vendored dependencies produced by the devdashboard build.
+            commonTest =
+              name: pattern:
+              pkgs.runCommand name
+                {
+                  buildInputs = [
+                    pkgs.gcc
+                    pkgs.go
+                    devdashboard
+                  ];
+                }
+                ''
+                  export HOME=$(mktemp -d)
+                  # Need to create first, else the second copy makes a read-only dir
+                  mkdir -p src
+                  cp -r ${devdashboard.goModules.outPath}/ src/vendor || true
+                  cp -r ${./.}/* ${./.}/.* src
+                  cd src
+                  export GOFLAGS="-mod=vendor"
+                  go ${pattern} 2>&1 | tee $out
+                '';
+          in
+          {
+            # Build once
+            build = devdashboard;
 
-          # Test check
-          test =
-            pkgs.runCommand "devdashboard-tests"
-              {
-                buildInputs = [ pkgs.go ];
-              }
-              ''
-                cd ${./.}
-                export HOME=$(mktemp -d)
-                export GOCACHE=$HOME/.cache/go-build
-                export GOMODCACHE=$HOME/go/pkg/mod
-                ${pkgs.go}/bin/go test -v ./pkg/... > $out
-              '';
+            # Aggregate test suites, all reuse the same vendored modules
+            test = commonTest "devdashboard-tests" "test -v ./pkg/...";
+            config-tests = commonTest "devdashboard-config-tests" "test -v ./pkg/config/...";
+            dependencies-tests = commonTest "devdashboard-dependencies-tests" "test -v ./pkg/dependencies/...";
+            repository-tests = commonTest "devdashboard-repository-tests" "test -v ./pkg/repository/...";
 
-          # Go vet check
-          vet =
-            pkgs.runCommand "devdashboard-vet"
-              {
-                buildInputs = [ pkgs.go ];
-              }
-              ''
-                cd ${./.}
-                export HOME=$(mktemp -d)
-                ${pkgs.go}/bin/go vet ./... 2>&1 | tee $out
-              '';
+            # Vet using vendored modules
+            vet = commonTest "devdashboard-vet" "vet ./...";
 
-          # Formatting check
-          fmt =
-            pkgs.runCommand "devdashboard-fmt"
-              {
-                buildInputs = [ pkgs.go ];
-              }
-              ''
-                cd ${./.}
-                unformatted=$(${pkgs.go}/bin/gofmt -l .)
-                if [ -n "$unformatted" ]; then
-                  echo "The following files are not formatted:" > $out
-                  echo "$unformatted" >> $out
-                  exit 1
-                fi
-                echo "All files are properly formatted" > $out
-              '';
-
-          # Dependencies check
-          config-tests =
-            pkgs.runCommand "devdashboard-config-tests"
-              {
-                buildInputs = [ pkgs.go ];
-              }
-              ''
-                cd ${./.}
-                export HOME=$(mktemp -d)
-                export GOCACHE=$HOME/.cache/go-build
-                export GOMODCACHE=$HOME/go/pkg/mod
-                ${pkgs.go}/bin/go test -v ./pkg/config/... > $out
-              '';
-
-          dependencies-tests =
-            pkgs.runCommand "devdashboard-dependencies-tests"
-              {
-                buildInputs = [ pkgs.go ];
-              }
-              ''
-                cd ${./.}
-                export HOME=$(mktemp -d)
-                export GOCACHE=$HOME/.cache/go-build
-                export GOMODCACHE=$HOME/go/pkg/mod
-                ${pkgs.go}/bin/go test -v ./pkg/dependencies/... > $out
-              '';
-
-          repository-tests =
-            pkgs.runCommand "devdashboard-repository-tests"
-              {
-                buildInputs = [ pkgs.go ];
-              }
-              ''
-                cd ${./.}
-                export HOME=$(mktemp -d)
-                export GOCACHE=$HOME/.cache/go-build
-                export GOMODCACHE=$HOME/go/pkg/mod
-                ${pkgs.go}/bin/go test -v ./pkg/repository/... > $out
-              '';
-        };
+            # Formatting check (doesn't need vendored deps)
+            fmt =
+              pkgs.runCommand "devdashboard-fmt"
+                {
+                  buildInputs = [ pkgs.go ];
+                }
+                ''
+                  unformatted=$(${pkgs.go}/bin/gofmt -l ${./.})
+                  if [ -n "$unformatted" ]; then
+                    echo "The following files are not formatted:" > $out
+                    echo "$unformatted" >> $out
+                    exit 1
+                  fi
+                  echo "All files are properly formatted" > $out
+                '';
+          };
 
         formatter = pkgs.nixpkgs-fmt;
       }

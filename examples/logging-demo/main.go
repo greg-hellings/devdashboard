@@ -90,8 +90,8 @@ type failingMockClient struct {
 	callCount int
 }
 
-func (m *failingMockClient) GetRepositoryInfo(ctx context.Context, owner, repo string) (*repository.RepositoryInfo, error) {
-	return &repository.RepositoryInfo{
+func (m *failingMockClient) GetRepositoryInfo(ctx context.Context, owner, repo string) (*repository.Info, error) {
+	return &repository.Info{
 		Name:     repo,
 		FullName: owner + "/" + repo,
 	}, nil
