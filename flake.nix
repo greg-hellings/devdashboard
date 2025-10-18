@@ -202,57 +202,59 @@
           '';
         };
 
-        checks = {
-          # Build once
-          build = devdashboard;
-          test =
-            pkgs.runCommand "go-test"
-              {
-                buildInputs = [
-                  pkgs.go
-                ];
-              }
-              ''
-                export HOME=$(mktemp -d)
-                cp -r ${./.} src
-                cd src
-                go test ./... 2>&1 | tee $out
-              '';
+        checks =
+          let
+            # Helper to run tests without re-fetching modules.
+            # Reuses the vendored dependencies produced by the devdashboard build.
+            commonTest =
+              name: pattern:
+              pkgs.runCommand name
+                {
+                  buildInputs = [
+                    pkgs.go
+                    devdashboard
+                  ];
+                }
+                ''
+                  export HOME=$(mktemp -d)
+                  # Need to create first, else the second copy makes a read-only dir
+                  mkdir -p src
+                  cp -r ${devdashboard.goModules.outPath}/ src/vendor || true
+                  cp -r ${./.}/* ${./.}/.* src
+                  cd src
+                  export GOFLAGS="-mod=vendor"
+                  go ${pattern} 2>&1 | tee $out
+                '';
+          in
+          {
+            # Build once
+            build = devdashboard;
 
-          # Vet using vendored modules
-          vet =
-            pkgs.runCommand "devdashboard-vet"
-              {
-                buildInputs = [
-                  pkgs.go
-                  devdashboard
-                ];
-              }
-              ''
-                export HOME=$(mktemp -d)
-                cp -r ${./.} src
-                cd src
-                cp -r ${devdashboard}/vendor ./ || true
-                export GOFLAGS="-mod=mod"
-                go vet ./... 2>&1 | tee $out
-              '';
+            # Aggregate test suites, all reuse the same vendored modules
+            test = commonTest "devdashboard-tests" "test -v ./pkg/...";
+            config-tests = commonTest "devdashboard-config-tests" "test -v ./pkg/config/...";
+            dependencies-tests = commonTest "devdashboard-dependencies-tests" "test -v ./pkg/dependencies/...";
+            repository-tests = commonTest "devdashboard-repository-tests" "test -v ./pkg/repository/...";
 
-          # Formatting check (doesn't need vendored deps)
-          fmt =
-            pkgs.runCommand "devdashboard-fmt"
-              {
-                buildInputs = [ pkgs.go ];
-              }
-              ''
-                unformatted=$(${pkgs.go}/bin/gofmt -l ${./.})
-                if [ -n "$unformatted" ]; then
-                  echo "The following files are not formatted:" > $out
-                  echo "$unformatted" >> $out
-                  exit 1
-                fi
-                echo "All files are properly formatted" > $out
-              '';
-        };
+            # Vet using vendored modules
+            vet = commonTest "devdashboard-vet" "vet ./...";
+
+            # Formatting check (doesn't need vendored deps)
+            fmt =
+              pkgs.runCommand "devdashboard-fmt"
+                {
+                  buildInputs = [ pkgs.go ];
+                }
+                ''
+                  unformatted=$(${pkgs.go}/bin/gofmt -l ${./.})
+                  if [ -n "$unformatted" ]; then
+                    echo "The following files are not formatted:" > $out
+                    echo "$unformatted" >> $out
+                    exit 1
+                  fi
+                  echo "All files are properly formatted" > $out
+                '';
+          };
 
         formatter = pkgs.nixpkgs-fmt;
       }
