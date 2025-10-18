@@ -9,11 +9,15 @@ devdashboard/
 ├── cmd/
 │   └── devdashboard/          # CLI application entry point
 ├── pkg/
-│   └── repository/            # Repository connector modules
-│       ├── repository.go      # Core interfaces and types
-│       ├── github.go          # GitHub implementation
-│       ├── gitlab.go          # GitLab implementation
-│       └── factory.go         # Factory pattern for client creation
+│   ├── repository/            # Repository connector modules
+│   │   ├── repository.go      # Core interfaces and types
+│   │   ├── github.go          # GitHub implementation
+│   │   ├── gitlab.go          # GitLab implementation
+│   │   └── factory.go         # Factory pattern for client creation
+│   └── dependencies/          # Dependency analyzer modules
+│       ├── dependencies.go    # Core interfaces and types
+│       ├── poetry.go          # Python Poetry implementation
+│       └── factory.go         # Factory pattern for analyzer creation
 ├── go.mod                     # Go module dependencies
 └── README.md                  # This file
 ```
@@ -22,18 +26,29 @@ devdashboard/
 
 ### Current Implementation
 
+#### Repository Management
 - **Multi-Provider Support**: Connect to GitHub and GitLab repositories
 - **Public & Private Repositories**: Support for authenticated and unauthenticated access
 - **Self-Hosted Instances**: Compatible with GitHub Enterprise and self-hosted GitLab
 - **Flexible API**: List files, retrieve repository metadata, and traverse entire repository trees
+- **File Content Retrieval**: Read file contents directly from repositories
 - **Factory Pattern**: Easy client instantiation with provider selection
+
+#### Dependency Analysis
+- **Poetry (Python)**: Analyze Python Poetry lock files (`poetry.lock`)
+- **Automatic Discovery**: Find dependency files in repositories
+- **Version Tracking**: Extract dependency names and version information
+- **Extensible Architecture**: Easy to add support for other dependency managers
+- **Factory Pattern**: Runtime selection of dependency analyzers
 
 ### Planned Features
 
 - Web dashboard for repository visualization
 - GUI application for desktop management
-- Additional repository providers
+- Additional repository providers (Bitbucket, Azure DevOps)
+- Additional dependency analyzers (npm, Maven, Gradle, Cargo, etc.)
 - Advanced file analysis and metrics
+- Dependency vulnerability scanning
 
 ## Installation
 
@@ -66,6 +81,7 @@ The CLI tool uses environment variables for configuration to keep sensitive toke
 
 #### Environment Variables
 
+**Repository Configuration:**
 - `REPO_PROVIDER` (required): Repository provider (`github` or `gitlab`)
 - `REPO_OWNER` (required): Repository owner or organization name
 - `REPO_NAME` (required): Repository name
@@ -73,9 +89,15 @@ The CLI tool uses environment variables for configuration to keep sensitive toke
 - `REPO_BASEURL` (optional): Custom base URL for self-hosted instances
 - `REPO_REF` (optional): Git reference (branch, tag, or commit SHA)
 
+**Dependency Analysis Configuration:**
+- `ANALYZER_TYPE` (optional): Dependency analyzer type (`poetry`, `npm`, etc., defaults to `poetry`)
+- `SEARCH_PATHS` (optional): Comma-separated list of paths to search for dependency files
+
 #### Commands
 
-##### List Files
+##### Repository Commands
+
+**List Files**
 
 List all files in a repository recursively:
 
@@ -86,7 +108,7 @@ export REPO_NAME=linux
 ./devdashboard list-files
 ```
 
-##### Repository Information
+**Repository Information**
 
 Get metadata about a repository:
 
@@ -97,7 +119,48 @@ export REPO_NAME=gitlab
 ./devdashboard repo-info
 ```
 
+##### Dependency Commands
+
+**Find Dependency Files**
+
+Find all dependency files in a repository:
+
+```bash
+export REPO_PROVIDER=github
+export REPO_OWNER=python-poetry
+export REPO_NAME=poetry
+export ANALYZER_TYPE=poetry
+./devdashboard find-dependencies
+```
+
+**Analyze Dependencies**
+
+Analyze dependencies from dependency files:
+
+```bash
+export REPO_PROVIDER=github
+export REPO_OWNER=python-poetry
+export REPO_NAME=poetry
+export ANALYZER_TYPE=poetry
+./devdashboard analyze-dependencies
+```
+
+**Search Specific Paths**
+
+Limit dependency search to specific directories:
+
+```bash
+export REPO_PROVIDER=github
+export REPO_OWNER=myorg
+export REPO_NAME=myrepo
+export ANALYZER_TYPE=poetry
+export SEARCH_PATHS="src,packages,services"
+./devdashboard find-dependencies
+```
+
 #### Examples
+
+**Repository Operations**
 
 **Public GitHub Repository:**
 ```bash
@@ -127,9 +190,37 @@ export REPO_REF=develop
 ./devdashboard list-files
 ```
 
-### Using as a Library
+**Dependency Analysis:**
 
-The repository package can be imported and used in your own Go applications.
+Find Poetry lock files:
+```bash
+export REPO_PROVIDER=github
+export REPO_OWNER=python-poetry
+export REPO_NAME=poetry
+export ANALYZER_TYPE=poetry
+./devdashboard find-dependencies
+```
+
+Analyze all dependencies:
+```bash
+export REPO_PROVIDER=github
+export REPO_OWNER=python-poetry
+export REPO_NAME=poetry
+export ANALYZER_TYPE=poetry
+./devdashboard analyze-dependencies
+```
+
+Output shows:
+- All dependency files found
+- Dependencies with names and versions
+- Dependency types (runtime, dev, optional)
+- Summary statistics
+
+## Using as a Library
+
+Both the repository and dependency packages can be imported and used in your own Go applications.
+
+### Repository Client Usage
 
 #### Basic Usage
 
@@ -183,6 +274,68 @@ githubClient, _ := factory.CreateClient("github")
 gitlabClient, _ := factory.CreateClient("gitlab")
 ```
 
+### Dependency Analysis Usage
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    
+    "github.com/greg-hellings/devdashboard/pkg/dependencies"
+    "github.com/greg-hellings/devdashboard/pkg/repository"
+)
+
+func main() {
+    // Create a repository client
+    repoConfig := repository.Config{
+        Token: "your-token-here", // Optional for public repos
+    }
+    repoClient, err := repository.NewClient("github", repoConfig)
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    // Create a dependency analyzer
+    analyzer, err := dependencies.NewAnalyzer("poetry")
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    // Configure the analyzer
+    depConfig := dependencies.Config{
+        RepositoryPaths:  []string{""}, // Search entire repository
+        RepositoryClient: repoClient,
+    }
+    
+    ctx := context.Background()
+    
+    // Find candidate dependency files
+    candidates, err := analyzer.CandidateFiles(ctx, "owner", "repo", "main", depConfig)
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    fmt.Printf("Found %d dependency files\n", len(candidates))
+    
+    // Analyze dependencies
+    results, err := analyzer.AnalyzeDependencies(ctx, "owner", "repo", "main", candidates, depConfig)
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    // Process results
+    for filePath, deps := range results {
+        fmt.Printf("\n%s: %d dependencies\n", filePath, len(deps))
+        for _, dep := range deps {
+            fmt.Printf("  %s v%s (%s)\n", dep.Name, dep.Version, dep.Type)
+        }
+    }
+}
+```
+
 #### Direct Client Instantiation
 
 ```go
@@ -199,7 +352,7 @@ gitlabClient, err := repository.NewGitLabClient(repository.Config{
 
 ## API Reference
 
-### Client Interface
+### Repository Client Interface
 
 All repository clients implement the `Client` interface:
 
@@ -213,8 +366,46 @@ type Client interface {
     
     // List all files recursively
     ListFilesRecursive(ctx context.Context, owner, repo, ref string) ([]FileInfo, error)
+    
+    // Get file content
+    GetFileContent(ctx context.Context, owner, repo, ref, path string) (string, error)
 }
 ```
+
+### Dependency Analyzer Interface
+
+```go
+type Analyzer interface {
+    // Get the name of this analyzer
+    Name() string
+    
+    // Find candidate dependency files
+    CandidateFiles(ctx context.Context, owner, repo, ref string, config Config) ([]DependencyFile, error)
+    
+    // Analyze dependencies from files
+    AnalyzeDependencies(ctx context.Context, owner, repo, ref string, files []DependencyFile, config Config) (map[string][]Dependency, error)
+}
+```
+
+### Dependency Structure
+
+```go
+type Dependency struct {
+    Name    string // Package name
+    Version string // Version specification
+    Type    string // "runtime", "dev", "optional"
+    Source  string // "pypi", "npm", etc.
+}
+```
+
+### DependencyFile Structure
+
+```go
+type DependencyFile struct {
+    Path     string // Path in repository
+    Type     string // File type (e.g., "poetry.lock")
+    Analyzer string // Analyzer name
+}
 
 ### FileInfo Structure
 
@@ -288,6 +479,21 @@ Contributions are welcome! Please ensure your code:
 
 [Specify your license here]
 
+## Supported Dependency Managers
+
+### Currently Supported
+- **Poetry (Python)**: `poetry.lock` files
+
+### Planned Support
+- npm (JavaScript/Node.js): `package-lock.json`, `yarn.lock`
+- Maven (Java): `pom.xml`
+- Gradle (Java/Kotlin): `build.gradle`, `build.gradle.kts`
+- Cargo (Rust): `Cargo.lock`
+- Go Modules: `go.mod`, `go.sum`
+- Bundler (Ruby): `Gemfile.lock`
+- Composer (PHP): `composer.lock`
+- NuGet (.NET): `packages.lock.json`
+
 ## Roadmap
 
 - [ ] Add Bitbucket support
@@ -295,6 +501,8 @@ Contributions are welcome! Please ensure your code:
 - [ ] Add rate limit handling and retry logic
 - [ ] Web dashboard implementation
 - [ ] GUI application development
-- [ ] File content retrieval and analysis
+- [x] File content retrieval and analysis
+- [ ] Additional dependency analyzers (npm, Maven, etc.)
+- [ ] Dependency vulnerability scanning
 - [ ] Diff and comparison tools
 - [ ] Webhook support for real-time updates

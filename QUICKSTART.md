@@ -133,6 +133,47 @@ export REPO_NAME=project
 ./bin/devdashboard repo-info
 ```
 
+## Analyzing Dependencies
+
+DevDashboard can find and analyze dependency files in repositories.
+
+### Find Dependency Files
+
+```bash
+export REPO_PROVIDER=github
+export REPO_OWNER=python-poetry
+export REPO_NAME=poetry
+export ANALYZER_TYPE=poetry
+./bin/devdashboard find-dependencies
+```
+
+This will search the repository and list all Poetry lock files found.
+
+### Analyze Dependencies
+
+```bash
+export REPO_PROVIDER=github
+export REPO_OWNER=python-poetry
+export REPO_NAME=poetry
+export ANALYZER_TYPE=poetry
+./bin/devdashboard analyze-dependencies
+```
+
+This will:
+1. Find all dependency files
+2. Parse each file
+3. Extract dependency information
+4. Display results with summary statistics
+
+### Search Specific Paths
+
+Limit the search to specific directories:
+
+```bash
+export SEARCH_PATHS="src,packages,services"
+./bin/devdashboard find-dependencies
+```
+
 ## Running the Examples
 
 We've included example code that demonstrates various use cases:
@@ -150,6 +191,7 @@ The examples demonstrate:
 - Public and private repository access
 - Listing files and directories
 - Using the factory pattern
+- Dependency analysis
 - Error handling
 
 ## Using as a Library
@@ -288,6 +330,8 @@ For self-hosted instances:
 | `REPO_TOKEN` | No | Authentication token |
 | `REPO_BASEURL` | No | Custom API base URL |
 | `REPO_REF` | No | Branch/tag/commit |
+| `ANALYZER_TYPE` | No | Dependency analyzer type |
+| `SEARCH_PATHS` | No | Comma-separated search paths |
 
 ### CLI Commands
 
@@ -295,6 +339,8 @@ For self-hosted instances:
 |---------|-------------|
 | `repo-info` | Get repository metadata |
 | `list-files` | List all files recursively |
+| `find-dependencies` | Find dependency files |
+| `analyze-dependencies` | Analyze dependencies |
 | `help` | Show help message |
 
 ### Makefile Targets

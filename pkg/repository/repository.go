@@ -6,23 +6,23 @@ import (
 
 // FileInfo represents metadata about a file in a repository
 type FileInfo struct {
-	Path     string // Full path to the file in the repository
-	Name     string // Name of the file
-	Type     string // Type: "file", "dir", "symlink", etc.
-	Size     int64  // Size in bytes
-	Mode     string // File mode/permissions
-	SHA      string // Git SHA or commit hash
-	URL      string // URL to the file in the web interface
+	Path string // Full path to the file in the repository
+	Name string // Name of the file
+	Type string // Type: "file", "dir", "symlink", etc.
+	Size int64  // Size in bytes
+	Mode string // File mode/permissions
+	SHA  string // Git SHA or commit hash
+	URL  string // URL to the file in the web interface
 }
 
 // RepositoryInfo contains metadata about a repository
 type RepositoryInfo struct {
-	ID          string // Repository ID
-	Name        string // Repository name
-	FullName    string // Full name (owner/repo)
-	Description string // Repository description
+	ID            string // Repository ID
+	Name          string // Repository name
+	FullName      string // Full name (owner/repo)
+	Description   string // Repository description
 	DefaultBranch string // Default branch name
-	URL         string // Web URL to the repository
+	URL           string // Web URL to the repository
 }
 
 // Client defines the interface for interacting with git repository providers
@@ -61,6 +61,18 @@ type Client interface {
 	//   - Slice of FileInfo objects for all files (not directories) in the repository
 	//   - Error if the operation fails
 	ListFilesRecursive(ctx context.Context, owner, repo, ref string) ([]FileInfo, error)
+
+	// GetFileContent retrieves the content of a specific file from the repository
+	// Parameters:
+	//   - ctx: Context for cancellation and timeouts
+	//   - owner: Repository owner (username or organization)
+	//   - repo: Repository name
+	//   - ref: Git reference (branch name, tag, or commit SHA). Empty string uses default branch
+	//   - path: Path to the file within the repository
+	// Returns:
+	//   - String containing the file content
+	//   - Error if the operation fails or file is not found
+	GetFileContent(ctx context.Context, owner, repo, ref, path string) (string, error)
 }
 
 // Config holds common configuration for repository clients

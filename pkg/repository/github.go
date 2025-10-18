@@ -158,3 +158,32 @@ func extractFileName(path string) string {
 	}
 	return path
 }
+
+// GetFileContent retrieves the content of a specific file from a GitHub repository
+func (g *GitHubClient) GetFileContent(ctx context.Context, owner, repo, ref, path string) (string, error) {
+	// Use default branch if ref is not specified
+	opts := &github.RepositoryContentGetOptions{}
+	if ref != "" {
+		opts.Ref = ref
+	}
+
+	// Get file content from GitHub API
+	fileContent, _, resp, err := g.client.Repositories.GetContents(ctx, owner, repo, path, opts)
+	if err != nil {
+		return "", fmt.Errorf("failed to get file content from GitHub: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check if we got a file (not a directory)
+	if fileContent == nil {
+		return "", fmt.Errorf("path is not a file: %s", path)
+	}
+
+	// Get the content - GitHub API returns base64 encoded content
+	content, err := fileContent.GetContent()
+	if err != nil {
+		return "", fmt.Errorf("failed to decode file content: %w", err)
+	}
+
+	return content, nil
+}

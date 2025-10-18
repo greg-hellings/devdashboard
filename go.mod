@@ -3,6 +3,7 @@ module github.com/greg-hellings/devdashboard
 go 1.21
 
 require (
+	github.com/BurntSushi/toml v1.3.2
 	github.com/google/go-github/v57 v57.0.0
 	github.com/xanzy/go-gitlab v0.95.2
 	golang.org/x/oauth2 v0.15.0

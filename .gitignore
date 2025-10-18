@@ -43,3 +43,5 @@ basic_usage
 # Temporary files
 tmp/
 temp/
+
+justfile

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"path/filepath"
 
@@ -196,4 +197,44 @@ func (g *GitLabClient) getProjectURL(owner, repo string) string {
 		baseURL = "https://gitlab.com"
 	}
 	return fmt.Sprintf("%s/%s/%s", baseURL, owner, repo)
+}
+
+// GetFileContent retrieves the content of a specific file from a GitLab repository
+func (g *GitLabClient) GetFileContent(ctx context.Context, owner, repo, ref, path string) (string, error) {
+	projectID := fmt.Sprintf("%s/%s", owner, repo)
+
+	// Use default branch if ref is not specified
+	refToUse := ref
+	if refToUse == "" {
+		repoInfo, err := g.GetRepositoryInfo(ctx, owner, repo)
+		if err != nil {
+			return "", fmt.Errorf("failed to get default branch: %w", err)
+		}
+		refToUse = repoInfo.DefaultBranch
+	}
+
+	// Get file content from GitLab API
+	opts := &gitlab.GetFileOptions{
+		Ref: gitlab.String(refToUse),
+	}
+
+	file, resp, err := g.client.RepositoryFiles.GetFile(projectID, path, opts, gitlab.WithContext(ctx))
+	if err != nil {
+		return "", fmt.Errorf("failed to get file content from GitLab: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// GitLab returns base64 encoded content in the Content field
+	// We need to decode it manually
+	if file.Content == "" {
+		return "", fmt.Errorf("file content is empty: %s", path)
+	}
+
+	// Decode base64 content
+	decodedContent, err := base64.StdEncoding.DecodeString(file.Content)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode base64 content: %w", err)
+	}
+
+	return string(decodedContent), nil
 }

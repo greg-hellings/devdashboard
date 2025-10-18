@@ -27,49 +27,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Support for public and private repositories
   - List files in directories (recursive and non-recursive)
   - Retrieve repository metadata
+  - Retrieve file content from repositories
   - GitHub Enterprise support via custom base URL
   - OAuth2 authentication
 - GitLab repository connector using official `go-gitlab` library
   - Support for public and private repositories
   - List files in directories with pagination support
   - Retrieve repository metadata
+  - Retrieve file content from repositories
   - Self-hosted GitLab instance support
   - Personal access token authentication
 - Factory pattern for creating repository clients
   - Case-insensitive provider selection
   - Support for "github" and "gitlab" providers
   - Convenience function for one-off client creation
+- Core dependency analyzer interface (`Analyzer`)
+- Python Poetry dependency analyzer
+  - Analyze `poetry.lock` files
+  - Extract dependency names and versions
+  - Categorize dependencies by type (runtime, dev, optional)
+  - Automatic discovery of Poetry lock files in repositories
+- Factory pattern for creating dependency analyzers
+  - Case-insensitive analyzer selection
+  - Support for "poetry" analyzer
+  - Convenience function for one-off analyzer creation
 - CLI tool (`cmd/devdashboard`)
   - `repo-info` command for repository metadata
   - `list-files` command for recursive file listing
+  - `find-dependencies` command for finding dependency files
+  - `analyze-dependencies` command for analyzing dependencies
   - Environment variable-based configuration
+  - Support for `ANALYZER_TYPE` and `SEARCH_PATHS` environment variables
   - Help command and usage documentation
 - Common data structures
   - `FileInfo`: Unified file metadata across providers
   - `RepositoryInfo`: Unified repository metadata
-  - `Config`: Authentication and endpoint configuration
+  - `Config`: Authentication and endpoint configuration (repository)
+  - `Dependency`: Dependency information with name, version, type
+  - `DependencyFile`: Dependency file metadata
+  - `Config`: Analyzer configuration with repository paths and client (dependencies)
 - Comprehensive documentation
   - README.md with full API reference
   - QUICKSTART.md for new users
   - ARCHITECTURE.md explaining design decisions
+  - DEPENDENCIES.md with dependency analysis guide
   - Inline code comments explaining implementation details
 - Example programs demonstrating library usage
   - Basic usage examples for both GitHub and GitLab
   - Factory pattern demonstration
   - Private repository access examples
   - Directory listing examples
+  - Dependency analysis examples
+  - Poetry lock file analysis
 - Build automation
   - Makefile with common targets (build, test, clean, etc.)
   - Setup script for quick installation
   - Go module dependency management
 - Testing
-  - Unit tests for factory pattern
+  - Unit tests for factory pattern (repository)
+  - Unit tests for factory pattern (dependencies)
   - Unit tests for helper functions
   - Test coverage for client creation and configuration
+  - Test coverage for analyzer creation
 - Development tools
   - .gitignore for Go projects
   - Makefile for build automation
   - Shell script for automated setup
+
+### Fixed
+- GitLab file content retrieval now properly decodes base64-encoded content
+  - Added explicit base64 decoding in `GetFileContent` method
+  - Added unit tests for base64 decoding functionality
+  - Ensures file content is returned as plain text strings
 
 ### Technical Details
 - Go 1.21 compatibility
@@ -82,6 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `github.com/google/go-github/v57` - Official GitHub API client
 - `github.com/xanzy/go-gitlab` - Official GitLab API client
 - `golang.org/x/oauth2` - OAuth2 authentication support
+- `github.com/BurntSushi/toml` - TOML parser for Poetry lock files
 
 ## Version History
 
