@@ -211,6 +211,7 @@
               pkgs.runCommand name
                 {
                   buildInputs = [
+                    pkgs.gcc
                     pkgs.go
                     devdashboard
                   ];
