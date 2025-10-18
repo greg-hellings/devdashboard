@@ -135,3 +135,88 @@ func TestNewGitLabClientWithoutToken(t *testing.T) {
 		t.Fatal("NewGitLabClient returned nil client")
 	}
 }
+
+// TestGitLabClient_getProjectURL verifies project URL construction
+func TestGitLabClient_getProjectURL(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      Config
+		owner       string
+		repo        string
+		expectedURL string
+	}{
+		{
+			name:        "gitlab.com default",
+			config:      Config{},
+			owner:       "gitlab-org",
+			repo:        "gitlab",
+			expectedURL: "https://gitlab.com/gitlab-org/gitlab",
+		},
+		{
+			name: "self-hosted instance",
+			config: Config{
+				BaseURL: "https://gitlab.example.com",
+			},
+			owner:       "myorg",
+			repo:        "myproject",
+			expectedURL: "https://gitlab.example.com/myorg/myproject",
+		},
+		{
+			name: "self-hosted with port",
+			config: Config{
+				BaseURL: "https://gitlab.company.com:8080",
+			},
+			owner:       "team",
+			repo:        "app",
+			expectedURL: "https://gitlab.company.com:8080/team/app",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := NewGitLabClient(tt.config)
+			if err != nil {
+				t.Fatalf("Failed to create GitLab client: %v", err)
+			}
+
+			url := client.getProjectURL(tt.owner, tt.repo)
+			if url != tt.expectedURL {
+				t.Errorf("Expected URL %s, got %s", tt.expectedURL, url)
+			}
+		})
+	}
+}
+
+// TestNewGitHubClient verifies GitHub client creation
+func TestNewGitHubClient(t *testing.T) {
+	config := Config{
+		Token: "test-token",
+	}
+
+	client, err := NewGitHubClient(config)
+	if err != nil {
+		t.Fatalf("Failed to create GitHub client: %v", err)
+	}
+
+	if client == nil {
+		t.Fatal("NewGitHubClient returned nil client")
+	}
+
+	if client.config.Token != config.Token {
+		t.Errorf("Expected token %s, got %s", config.Token, client.config.Token)
+	}
+}
+
+// TestNewGitHubClientWithoutToken verifies client creation without authentication
+func TestNewGitHubClientWithoutToken(t *testing.T) {
+	config := Config{}
+
+	client, err := NewGitHubClient(config)
+	if err != nil {
+		t.Fatalf("Failed to create GitHub client without token: %v", err)
+	}
+
+	if client == nil {
+		t.Fatal("NewGitHubClient returned nil client")
+	}
+}
