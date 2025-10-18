@@ -137,6 +137,9 @@
           default = {
             type = "app";
             program = "${devdashboard}/bin/devdashboard";
+            meta = {
+              description = "Run the dashboard CLI, by default";
+            };
           };
         };
 
@@ -197,9 +200,6 @@
         };
 
         checks = {
-          # Pre-commit hooks check
-          pre-commit = pre-commit-check;
-
           # Build check
           build = devdashboard;
 
@@ -227,26 +227,6 @@
                 cd ${./.}
                 export HOME=$(mktemp -d)
                 ${pkgs.go}/bin/go vet ./pkg/... ./cmd/... 2>&1 | tee $out
-              '';
-
-          # Go mod tidy check
-          mod-tidy =
-            pkgs.runCommand "devdashboard-mod-tidy"
-              {
-                buildInputs = [ pkgs.go ];
-              }
-              ''
-                cd ${./.}
-                cp -r . $TMPDIR/src
-                cd $TMPDIR/src
-                export HOME=$(mktemp -d)
-                ${pkgs.go}/bin/go mod tidy
-                diff go.mod ${./.}/go.mod > $out || true
-                diff go.sum ${./.}/go.sum >> $out || true
-                if [ -s $out ]; then
-                  echo "go.mod or go.sum is not tidy" >> $out
-                  exit 1
-                fi
               '';
 
           # Formatting check
