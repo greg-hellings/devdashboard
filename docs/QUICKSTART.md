@@ -307,7 +307,7 @@ For self-hosted instances:
 
 ## Next Steps
 
-- Read the full [README.md](README.md) for detailed API documentation
+- Read the full [README.md](../README.md) for detailed API documentation
 - Explore the [examples](examples/) directory for more code samples
 - Check out the [pkg/repository](pkg/repository/) package for interface details
 - Start building your own integrations!

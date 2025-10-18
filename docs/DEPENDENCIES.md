@@ -579,6 +579,6 @@ See `examples/dependency_analysis.go` for complete working examples including:
 
 ## Related Documentation
 
-- [README.md](README.md) - Main project documentation
+- [README.md](../README.md) - Main project documentation
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Design decisions and patterns
 - [Repository Module](pkg/repository/repository.go) - Repository interface documentation

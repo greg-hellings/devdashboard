@@ -80,11 +80,10 @@ func (p *PoetryAnalyzer) AnalyzeDependencies(ctx context.Context, owner, repo, r
 
 	for _, file := range files {
 		deps, err := p.analyzeFile(ctx, owner, repo, ref, file.Path, config)
-		fmt.Println("Founds deps: ", deps)
 		if err != nil {
 			// Don't fail completely if one file fails, just skip it
 			// Caller can check for incomplete results
-			fmt.Println("Error: ", err)
+			fmt.Println("Non-fatal error while analyzing file: ", err)
 			continue
 		}
 		result[file.Path] = deps
@@ -100,7 +99,6 @@ func (p *PoetryAnalyzer) analyzeFile(ctx context.Context, owner, repo, ref, file
 	if err != nil {
 		return nil, fmt.Errorf("failed to get file content for %s: %w", filePath, err)
 	}
-	fmt.Println(content)
 
 	// Parse the poetry.lock file
 	dependencies, err := p.parsePoetryLock(content)

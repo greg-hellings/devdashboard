@@ -711,7 +711,7 @@ jobs:
 ## Getting Help
 
 - Run `devdashboard help` for command overview
-- Check [README.md](README.md) for full documentation
+- Check [README.md](../README.md) for full documentation
 - See [DEPENDENCIES.md](DEPENDENCIES.md) for dependency analysis details
 - Review [examples/](examples/) for code examples
 

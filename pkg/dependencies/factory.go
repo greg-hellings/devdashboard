@@ -16,6 +16,8 @@ func NewFactory() *Factory {
 // CreateAnalyzer creates a new dependency analyzer based on the analyzer type
 // The analyzerType parameter is case-insensitive and supports the following values:
 //   - "poetry" - Creates a Poetry (Python) analyzer
+//   - "pipfile" - Creates a Pipfile (Python) analyzer
+//   - "uvlock" - Creates a uv.lock (Python) analyzer
 //
 // Returns an error if the analyzer type is not recognized
 func (f *Factory) CreateAnalyzer(analyzerType string) (Analyzer, error) {
@@ -25,8 +27,12 @@ func (f *Factory) CreateAnalyzer(analyzerType string) (Analyzer, error) {
 	switch AnalyzerType(normalized) {
 	case AnalyzerPoetry:
 		return NewPoetryAnalyzer(), nil
+	case AnalyzerPipfile:
+		return NewPipfileAnalyzer(), nil
+	case AnalyzerUvLock:
+		return NewUvLockAnalyzer(), nil
 	default:
-		return nil, fmt.Errorf("unsupported analyzer type: %s (supported: poetry)", analyzerType)
+		return nil, fmt.Errorf("unsupported analyzer type: %s (supported: poetry, pipfile, uvlock)", analyzerType)
 	}
 }
 
@@ -42,5 +48,7 @@ func NewAnalyzer(analyzerType string) (Analyzer, error) {
 func SupportedAnalyzers() []string {
 	return []string{
 		string(AnalyzerPoetry),
+		string(AnalyzerPipfile),
+		string(AnalyzerUvLock),
 	}
 }

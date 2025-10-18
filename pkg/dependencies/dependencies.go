@@ -79,6 +79,10 @@ type AnalyzerType string
 const (
 	// AnalyzerPoetry represents Python Poetry dependency analyzer
 	AnalyzerPoetry AnalyzerType = "poetry"
+	// AnalyzerPipfile represents Python Pipfile dependency analyzer
+	AnalyzerPipfile AnalyzerType = "pipfile"
+	// AnalyzerUvLock represents Python uv.lock dependency analyzer
+	AnalyzerUvLock AnalyzerType = "uvlock"
 )
 
 // Result contains the complete dependency analysis for a repository
