@@ -90,7 +90,7 @@ func (n *NpmAnalyzer) CandidateFiles(ctx context.Context, owner, repo, ref strin
             // Check for package-lock.json or yarn.lock
             isNpmLock := strings.HasSuffix(file.Path, "package-lock.json")
             isYarnLock := strings.HasSuffix(file.Path, "yarn.lock")
-            
+
             if isNpmLock || isYarnLock {
                 // If searchPath is specified, ensure file is within that path
                 if searchPath != "" && !strings.HasPrefix(file.Path, searchPath) {
@@ -271,7 +271,7 @@ import "testing"
 
 func TestNpmAnalyzerName(t *testing.T) {
     analyzer := NewNpmAnalyzer()
-    
+
     if analyzer.Name() != "npm" {
         t.Errorf("Expected name 'npm', got '%s'", analyzer.Name())
     }
@@ -279,7 +279,7 @@ func TestNpmAnalyzerName(t *testing.T) {
 
 func TestNewNpmAnalyzer(t *testing.T) {
     analyzer := NewNpmAnalyzer()
-    
+
     if analyzer == nil {
         t.Fatal("NewNpmAnalyzer returned nil")
     }
@@ -384,7 +384,7 @@ func (a *Analyzer) CandidateFiles(ctx context.Context, ...) ([]DependencyFile, e
         "yarn.lock",
         "pnpm-lock.yaml",
     }
-    
+
     for _, pattern := range filePatterns {
         // Search for each pattern
     }
@@ -468,7 +468,7 @@ export ANALYZER_TYPE=npm
 
 **Problem:** Lock files with thousands of dependencies are slow to parse
 
-**Solution:** 
+**Solution:**
 - Stream the file content
 - Parse incrementally
 - Consider pagination or limiting results

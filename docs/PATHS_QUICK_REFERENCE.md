@@ -81,12 +81,12 @@ repositories:
     analyzer: "poetry"
     paths:
       - "poetry.lock"
-  
+
   - repository: "pipenv-project"
     analyzer: "pipfile"
     paths:
       - "Pipfile.lock"
-  
+
   - repository: "uv-project"
     analyzer: "uvlock"
     paths:
@@ -98,7 +98,7 @@ repositories:
 repositories:
   # Auto-search
   - repository: "small-service"
-  
+
   # Explicit paths
   - repository: "large-monorepo"
     paths:

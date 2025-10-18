@@ -181,7 +181,7 @@ providers:
       # Auto-search for simple repos
       - repository: "legacy-app"
         analyzer: "pipfile"
-      
+
       # Explicit paths for monorepos
       - repository: "new-platform"
         analyzer: "uvlock"
@@ -191,7 +191,7 @@ providers:
           - "scheduler/uv.lock"
 ```
 
-**Behavior**: 
+**Behavior**:
 - `legacy-app`: Searches entire repo for `Pipfile.lock`
 - `new-platform`: Analyzes only the three specified `uv.lock` files
 

@@ -177,6 +177,6 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and changes.
 
 ---
 
-**Version:** 0.1.0  
-**Go Version:** 1.21+  
+**Version:** 0.1.0
+**Go Version:** 1.21+
 **Status:** Active Development

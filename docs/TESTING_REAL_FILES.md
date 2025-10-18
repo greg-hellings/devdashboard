@@ -167,14 +167,14 @@ func TestPipfileAnalyzer_ParseRealPipfileLock(t *testing.T) {
         t.Skipf("Skipping test: tmp/Pipfile.lock not found: %v", err)
         return
     }
-    
+
     analyzer := NewPipfileAnalyzer()
     deps, err := analyzer.parsePipfileLock(string(content))
-    
+
     if err != nil {
         t.Fatalf("Failed to parse real Pipfile.lock: %v", err)
     }
-    
+
     // Add specific validations...
 }
 ```

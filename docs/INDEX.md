@@ -166,5 +166,5 @@ All documentation should:
 
 ---
 
-**Last Updated:** 2024-01-XX  
+**Last Updated:** 2024-01-XX
 **Documentation Version:** 0.1.0

@@ -284,7 +284,7 @@ All documentation has been updated to include the new commands:
 All commands tested with real repositories:
 
 ✅ `find-dependencies` with python-poetry/poetry
-✅ `analyze-dependencies` with python-poetry/poetry  
+✅ `analyze-dependencies` with python-poetry/poetry
 ✅ Error handling for missing dependencies
 ✅ Search path filtering
 ✅ Public repository access
@@ -347,10 +347,10 @@ Timeout is set to 120 seconds for analysis operations.
 
 The CLI now provides complete dependency analysis capabilities with:
 
-✅ Two new commands (`find-dependencies`, `analyze-dependencies`)  
-✅ Two new environment variables (`ANALYZER_TYPE`, `SEARCH_PATHS`)  
-✅ Comprehensive documentation  
-✅ Real-world testing and validation  
-✅ Full backward compatibility  
+✅ Two new commands (`find-dependencies`, `analyze-dependencies`)
+✅ Two new environment variables (`ANALYZER_TYPE`, `SEARCH_PATHS`)
+✅ Comprehensive documentation
+✅ Real-world testing and validation
+✅ Full backward compatibility
 
 Users can now perform dependency analysis entirely from the command line without writing any code, making DevDashboard more accessible and easier to integrate into existing workflows and automation.

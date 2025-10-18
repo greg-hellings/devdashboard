@@ -205,7 +205,7 @@ import (
     "context"
     "fmt"
     "log"
-    
+
     "github.com/greg-hellings/devdashboard/pkg/repository"
 )
 
@@ -214,19 +214,19 @@ func main() {
     config := repository.Config{
         Token: "optional-token",
     }
-    
+
     client, err := repository.NewClient("github", config)
     if err != nil {
         log.Fatal(err)
     }
-    
+
     // Get repository info
     ctx := context.Background()
     info, err := client.GetRepositoryInfo(ctx, "golang", "go")
     if err != nil {
         log.Fatal(err)
     }
-    
+
     fmt.Printf("Repository: %s\n", info.FullName)
     fmt.Printf("Description: %s\n", info.Description)
 }
@@ -308,8 +308,8 @@ For self-hosted instances:
 ## Next Steps
 
 - Read the full [README.md](../README.md) for detailed API documentation
-- Explore the [examples](examples/) directory for more code samples
-- Check out the [pkg/repository](pkg/repository/) package for interface details
+- Explore the [examples](../examples/) directory for more code samples
+- Check out the [pkg/repository](../pkg/repository/) package for interface details
 - Start building your own integrations!
 
 ## Getting Help

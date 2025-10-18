@@ -117,7 +117,7 @@ repositories:
 repositories:
   - repository: "simple-app"
     # Auto-search
-  
+
   - repository: "complex-monorepo"
     # Explicit paths
     paths:
@@ -125,7 +125,7 @@ repositories:
       - "frontend/uv.lock"
 ```
 
-**Behavior**: 
+**Behavior**:
 - `simple-app`: Auto-searches entire repo
 - `complex-monorepo`: Analyzes only the two specified files
 

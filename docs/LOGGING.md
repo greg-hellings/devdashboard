@@ -116,7 +116,7 @@ When using DevDashboard as a library, you can configure slog yourself:
 import (
     "log/slog"
     "os"
-    
+
     "github.com/greg-hellings/devdashboard/pkg/dependencies"
 )
 
@@ -126,7 +126,7 @@ func main() {
         Level: slog.LevelDebug,
     })
     slog.SetDefault(slog.New(handler))
-    
+
     // Now all DevDashboard operations will log at DEBUG level
     analyzer := dependencies.NewPoetryAnalyzer()
     // ... use analyzer
@@ -274,4 +274,3 @@ This example shows:
 
 - [CLI Guide](CLI_GUIDE.md) - Using the command-line interface
 - [Dependency Analysis](DEPENDENCIES.md) - Understanding dependency analyzers
-- [Troubleshooting](TROUBLESHOOTING.md) - Common issues and solutions

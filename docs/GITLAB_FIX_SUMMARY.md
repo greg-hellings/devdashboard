@@ -143,6 +143,6 @@ Users can now:
 
 ---
 
-**Date:** 2024-01-XX  
-**Status:** Complete  
+**Date:** 2024-01-XX
+**Status:** Complete
 **Test Coverage:** 100% of new code

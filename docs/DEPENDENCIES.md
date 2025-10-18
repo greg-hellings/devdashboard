@@ -51,7 +51,7 @@ type Config struct {
     // RepositoryPaths is a list of paths within the repository to search
     // for dependency files. Empty list means search the entire repository.
     RepositoryPaths []string
-    
+
     // RepositoryClient is the repository client implementation used to
     // fetch files from the repository
     RepositoryClient repository.Client
@@ -69,7 +69,7 @@ import (
     "context"
     "fmt"
     "log"
-    
+
     "github.com/greg-hellings/devdashboard/pkg/dependencies"
     "github.com/greg-hellings/devdashboard/pkg/repository"
 )
@@ -83,24 +83,24 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    
+
     // 2. Create a dependency analyzer
     analyzer, err := dependencies.NewAnalyzer("poetry")
     if err != nil {
         log.Fatal(err)
     }
-    
+
     // 3. Configure the analyzer
     depConfig := dependencies.Config{
         RepositoryPaths:  []string{""}, // Empty string = search entire repo
         RepositoryClient: repoClient,
     }
-    
+
     ctx := context.Background()
-    
+
     // 4. Find candidate dependency files
     candidates, err := analyzer.CandidateFiles(
-        ctx, 
+        ctx,
         "python-poetry",  // owner
         "poetry",         // repo
         "master",         // ref (branch/tag/commit)
@@ -109,9 +109,9 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    
+
     fmt.Printf("Found %d dependency files\n", len(candidates))
-    
+
     // 5. Analyze dependencies
     results, err := analyzer.AnalyzeDependencies(
         ctx,
@@ -124,12 +124,12 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    
+
     // 6. Process results
     for filePath, deps := range results {
         fmt.Printf("\n%s:\n", filePath)
         for _, dep := range deps {
-            fmt.Printf("  %s v%s (%s from %s)\n", 
+            fmt.Printf("  %s v%s (%s from %s)\n",
                 dep.Name, dep.Version, dep.Type, dep.Source)
         }
     }
@@ -346,7 +346,7 @@ repos := []struct {
 for _, r := range repos {
     candidates, _ := analyzer.CandidateFiles(ctx, r.owner, r.repo, r.ref, config)
     results, _ := analyzer.AnalyzeDependencies(ctx, r.owner, r.repo, r.ref, candidates, config)
-    
+
     fmt.Printf("\n%s/%s:\n", r.owner, r.repo)
     for filePath, deps := range results {
         fmt.Printf("  %s: %d dependencies\n", filePath, len(deps))
@@ -427,7 +427,7 @@ depConfig := dependencies.Config{
 ```go
 func TestAnalyzer(t *testing.T) {
     analyzer := dependencies.NewPoetryAnalyzer()
-    
+
     if analyzer.Name() != "poetry" {
         t.Errorf("Expected name 'poetry', got '%s'", analyzer.Name())
     }
@@ -482,7 +482,7 @@ const (
 ```go
 func (f *Factory) CreateAnalyzer(analyzerType string) (Analyzer, error) {
     normalized := strings.ToLower(strings.TrimSpace(analyzerType))
-    
+
     switch AnalyzerType(normalized) {
     case AnalyzerPoetry:
         return NewPoetryAnalyzer(), nil
@@ -581,4 +581,4 @@ See `examples/dependency_analysis.go` for complete working examples including:
 
 - [README.md](../README.md) - Main project documentation
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Design decisions and patterns
-- [Repository Module](pkg/repository/repository.go) - Repository interface documentation
+- [Repository Module](../pkg/repository/repository.go) - Repository interface documentation

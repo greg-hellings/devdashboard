@@ -429,7 +429,7 @@ providers:
 2. Use `paths` to specify the exact file paths:
    ```yaml
    - repository: "monorepo"
-     paths: 
+     paths:
        - "backend/poetry.lock"
        - "services/api/poetry.lock"
    ```

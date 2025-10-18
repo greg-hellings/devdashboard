@@ -397,7 +397,7 @@ for repo in "${REPOS[@]}"; do
     IFS='/' read -r owner name <<< "$repo"
     export REPO_OWNER=$owner
     export REPO_NAME=$name
-    
+
     echo "Analyzing $repo..."
     devdashboard analyze-dependencies > "deps-${owner}-${name}.txt"
 done
@@ -697,7 +697,7 @@ jobs:
         run: |
           curl -L https://github.com/greg-hellings/devdashboard/releases/latest/download/devdashboard-linux > devdashboard
           chmod +x devdashboard
-      
+
       - name: Analyze Dependencies
         env:
           REPO_PROVIDER: github
@@ -713,11 +713,10 @@ jobs:
 - Run `devdashboard help` for command overview
 - Check [README.md](../README.md) for full documentation
 - See [DEPENDENCIES.md](DEPENDENCIES.md) for dependency analysis details
-- Review [examples/](examples/) for code examples
+- Review [examples/](../examples/) for code examples
 
 ## Next Steps
 
-- Explore the [API documentation](README.md#api-reference)
-- Try the [example programs](examples/)
+- Try the [example programs](../examples/)
 - Learn about [extending the tool](DEPENDENCY_IMPLEMENTATION.md)
 - Contribute to the project!
