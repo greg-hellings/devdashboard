@@ -22,9 +22,9 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
-        version = "0.1.0";
+        version = "0.2.0";
 
-        vendorHash = "sha256-4DAH6xmx7Ew/7xbkng4s8uH9Hg2qS/+40JNPwD8lKfg=";
+        vendorHash = "sha256-icE99gXkDYrKEmre+W+MWMFe+dfNLcjANUiVVrmBVWM=";
 
         devdashboard = pkgs.buildGoModule {
           pname = "devdashboard";
