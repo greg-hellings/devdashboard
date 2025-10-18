@@ -159,7 +159,7 @@ The `go.mod` files use a replace directive to reference the parent module:
 ```go
 module github.com/greg-hellings/devdashboard/examples/basic-usage
 
-go 1.21
+go 1.24
 
 replace github.com/greg-hellings/devdashboard => ../..
 
@@ -233,7 +233,7 @@ When adding new examples:
    ```go
    module github.com/greg-hellings/devdashboard/examples/my-example
 
-   go 1.21
+   go 1.24
 
    replace github.com/greg-hellings/devdashboard => ../..
 

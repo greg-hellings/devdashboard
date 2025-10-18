@@ -14,7 +14,7 @@ The CI/CD pipeline is designed to ensure code quality, security, and reliability
 
 **Jobs:**
 - **pre-commit**: Runs pre-commit hooks on all files
-- **go-tests**: Tests on Go 1.21, 1.22, and 1.23
+- **go-tests**: Tests on Go 1.24 and 1.25
 - **go-build**: Cross-platform builds (Linux, macOS, Windows)
 - **nix-build**: Builds with Nix flake
 - **nix-checks**: Runs all Nix flake checks
@@ -27,7 +27,7 @@ The CI/CD pipeline is designed to ensure code quality, security, and reliability
 - `CACHIX_AUTH_TOKEN` (optional): For Nix binary caching
 
 **Matrix Strategy:**
-- Go versions: 1.21, 1.22, 1.23
+- Go versions: 1.24, 1.25
 - Platforms: Ubuntu, macOS, Windows
 
 ### 📊 Coverage (`coverage.yml`)
@@ -80,7 +80,7 @@ The CI/CD pipeline is designed to ensure code quality, security, and reliability
 **Trigger:** Daily at 2 AM UTC, Manual dispatch
 
 **Jobs:**
-- **nightly-tests**: Tests with race detector and benchmarks on Go 1.21, 1.22, 1.23, and tip
+- **nightly-tests**: Tests with race detector and benchmarks on Go 1.24, 1.25, and tip
 - **nightly-build**: Integration tests on all platforms
 - **nix-nightly**: Comprehensive Nix checks
 - **dependency-audit**: Runs govulncheck for vulnerabilities
@@ -224,7 +224,7 @@ Recommended branch protection rules for `main`:
 
 - ✅ Require status checks to pass before merging
   - `All checks passed`
-  - `go-tests (1.21)`
+  - `go-tests (1.24)`
   - `nix-build`
   - `nix-checks`
   - `pre-commit`

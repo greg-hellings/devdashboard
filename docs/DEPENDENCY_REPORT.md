@@ -516,7 +516,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: '1.24'
       - name: Install DevDashboard
         run: go install github.com/greg-hellings/devdashboard/cmd/devdashboard@latest
       - name: Generate Report
@@ -534,7 +534,7 @@ jobs:
 
 ```yaml
 dependency-report:
-  image: golang:1.21
+  image: golang:1.24
   script:
     - go install github.com/greg-hellings/devdashboard/cmd/devdashboard@latest
     - devdashboard dependency-report config.yaml > report.txt
