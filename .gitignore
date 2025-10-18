@@ -35,7 +35,14 @@ go.work
 
 # Build artifacts
 devdashboard
-basic_usage
+
+# Example binaries
+examples/basic-usage/basic-usage
+examples/dependency-analysis/dependency-analysis
+examples/logging-demo/logging-demo
+examples/pipfile-uvlock-example/pipfile-uvlock-example
+examples/*/main
+examples/*/*.exe
 
 # Logs
 *.log

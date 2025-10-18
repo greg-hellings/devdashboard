@@ -12,7 +12,7 @@ import (
 
 func main() {
 	// Example demonstrating Pipfile and uv.lock analyzers
-	fmt.Println("=== DevDashboard Pipfile and uv.lock Analyzer Example ===\n")
+	fmt.Println("=== DevDashboard Pipfile and uv.lock Analyzer Example ===")
 
 	// Get configuration from environment
 	provider := getEnv("REPO_PROVIDER", "github")

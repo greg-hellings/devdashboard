@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	fmt.Println("=== DevDashboard Logging Demo ===\n")
+	fmt.Println("=== DevDashboard Logging Demo ===")
 
 	// Demonstrate different log levels
 	fmt.Println("1. Testing with WARN level (default - minimal output):")

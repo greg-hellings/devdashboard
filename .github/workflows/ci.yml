@@ -24,7 +24,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install pre-commit
         run: pip install pre-commit
@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ['1.21', '1.22', '1.23']
+        go-version: ["1.21", "1.22", "1.23"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -84,7 +84,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        go-version: ['1.21']
+        go-version: ["1.21"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -100,6 +100,22 @@ jobs:
 
       - name: Test binary
         run: ./devdashboard${{ matrix.os == 'windows-latest' && '.exe' || '' }} help
+
+  examples:
+    name: Test examples
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache: true
+
+      - name: Test all examples
+        run: ./scripts/test-examples.sh
 
   nix-build:
     name: Nix build
@@ -162,7 +178,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.21'
+          go-version: "1.21"
           cache: true
 
       - name: golangci-lint
@@ -186,12 +202,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.21'
+          go-version: "1.21"
 
       - name: Run Gosec Security Scanner
         uses: securego/gosec@master
         with:
-          args: '-no-fail -fmt sarif -out results.sarif ./...'
+          args: "-no-fail -fmt sarif -out results.sarif ./..."
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v3
@@ -205,6 +221,7 @@ jobs:
       - pre-commit
       - go-tests
       - go-build
+      - examples
       - nix-build
       - nix-checks
       - code-quality

@@ -2,7 +2,6 @@
 
 # Binary names
 BINARY_NAME=devdashboard
-EXAMPLE_BINARY=basic_usage
 
 # Build directory
 BUILD_DIR=bin
@@ -42,17 +41,30 @@ build:
 	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/devdashboard
 	@echo "Build complete: $(BUILD_DIR)/$(BINARY_NAME)"
 
-## example: Build the example program
-example:
-	@echo "Building example..."
-	@mkdir -p $(BUILD_DIR)
-	$(GOBUILD) -o $(BUILD_DIR)/$(EXAMPLE_BINARY) ./examples/basic_usage.go
-	@echo "Build complete: $(BUILD_DIR)/$(EXAMPLE_BINARY)"
+## examples: Build all example programs
+examples:
+	@echo "Building examples..."
+	@for dir in examples/*/; do \
+		if [ -f "$$dir/main.go" ]; then \
+			echo "Building $$(basename $$dir)..."; \
+			(cd "$$dir" && $(GOBUILD) -o $$(basename $$dir)) || exit 1; \
+		fi; \
+	done
+	@echo "All examples built successfully"
 
-## run-example: Build and run the example program
-run-example: example
-	@echo "Running example..."
-	@./$(BUILD_DIR)/$(EXAMPLE_BINARY)
+## build-examples: Alias for examples target
+build-examples: examples
+
+## clean-examples: Clean example binaries
+clean-examples:
+	@echo "Cleaning example binaries..."
+	@for dir in examples/*/; do \
+		if [ -f "$$dir/main.go" ]; then \
+			rm -f "$$dir/$$(basename $$dir)"; \
+			rm -f "$$dir/main"; \
+		fi; \
+	done
+	@echo "Example binaries cleaned"
 
 ## install: Install the CLI tool to GOPATH/bin
 install:
@@ -79,7 +91,7 @@ fmt:
 	@echo "Formatting complete"
 
 ## clean: Remove build artifacts
-clean:
+clean: clean-examples
 	@echo "Cleaning build artifacts..."
 	$(GOCLEAN)
 	rm -rf $(BUILD_DIR)

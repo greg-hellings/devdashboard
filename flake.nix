@@ -72,7 +72,7 @@
             govet = {
               enable = true;
               name = "go vet";
-              entry = "${pkgs.go}/bin/go vet ./pkg/... ./cmd/...";
+              entry = "${pkgs.go}/bin/go vet ./...";
               files = "\\.go$";
               pass_filenames = false;
             };
@@ -226,7 +226,7 @@
               ''
                 cd ${./.}
                 export HOME=$(mktemp -d)
-                ${pkgs.go}/bin/go vet ./pkg/... ./cmd/... 2>&1 | tee $out
+                ${pkgs.go}/bin/go vet ./... 2>&1 | tee $out
               '';
 
           # Formatting check
