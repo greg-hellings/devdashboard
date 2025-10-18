@@ -13,7 +13,7 @@ type mockRepoClient struct {
 	err     error
 }
 
-func (m *mockRepoClient) GetRepositoryInfo(ctx context.Context, owner, repo string) (*repository.RepositoryInfo, error) {
+func (m *mockRepoClient) GetRepositoryInfo(_ context.Context, owner, repo string) (*repository.RepositoryInfo, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -27,21 +27,21 @@ func (m *mockRepoClient) GetRepositoryInfo(ctx context.Context, owner, repo stri
 	}, nil
 }
 
-func (m *mockRepoClient) ListFiles(ctx context.Context, owner, repo, ref, path string) ([]repository.FileInfo, error) {
+func (m *mockRepoClient) ListFiles(_ context.Context, _, _, _, _ string) ([]repository.FileInfo, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
 	return m.files, nil
 }
 
-func (m *mockRepoClient) ListFilesRecursive(ctx context.Context, owner, repo, ref string) ([]repository.FileInfo, error) {
+func (m *mockRepoClient) ListFilesRecursive(_ context.Context, _, _, _ string) ([]repository.FileInfo, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
 	return m.files, nil
 }
 
-func (m *mockRepoClient) GetFileContent(ctx context.Context, owner, repo, ref, path string) (string, error) {
+func (m *mockRepoClient) GetFileContent(_ context.Context, _, _, _, _ string) (string, error) {
 	if m.err != nil {
 		return "", m.err
 	}

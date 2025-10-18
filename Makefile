@@ -115,8 +115,14 @@ run-gitlab: build
 	@echo "Running $(BINARY_NAME) with GitLab..."
 	@REPO_PROVIDER=gitlab ./$(BUILD_DIR)/$(BINARY_NAME) $(CMD)
 
-## check: Run various checks (fmt, vet, test)
-check: fmt
+## lint: Run golangci-lint
+lint:
+	@echo "Running golangci-lint..."
+	@golangci-lint run ./...
+	@echo "Linting complete"
+
+## check: Run various checks (fmt, vet, lint, test)
+check: fmt lint
 	@echo "Running go vet..."
 	$(GOCMD) vet ./...
 	@echo "Running tests..."

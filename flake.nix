@@ -151,6 +151,7 @@
             gopls
             go-tools
             delve
+            golangci-lint
 
             # Git tools
             git

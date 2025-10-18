@@ -1,3 +1,6 @@
+// Package repository provides clients for interacting with various source code hosting platforms
+// including GitHub and GitLab. It offers a unified interface for accessing repository metadata,
+// file listings, and file contents.
 package repository
 
 import (
@@ -11,7 +14,7 @@ import (
 
 // GitLabClient implements the Client interface for GitLab repositories
 type GitLabClient struct {
-	client *gitlab.Client
+	client *gitlab.Client //nolint:staticcheck // TODO: migrate to gitlab.com/gitlab-org/api/client-go
 	config Config
 }
 
@@ -19,7 +22,7 @@ type GitLabClient struct {
 // If no token is provided, the client will only have access to public repositories
 // If a custom BaseURL is provided, it will be used for self-hosted GitLab instances
 func NewGitLabClient(config Config) (*GitLabClient, error) {
-	var client *gitlab.Client
+	var client *gitlab.Client //nolint:staticcheck // TODO: migrate to gitlab.com/gitlab-org/api/client-go
 	var err error
 
 	// Configure client options
@@ -32,9 +35,9 @@ func NewGitLabClient(config Config) (*GitLabClient, error) {
 
 	// Create client with authentication if token is provided
 	if config.Token != "" {
-		client, err = gitlab.NewClient(config.Token, opts...)
+		client, err = gitlab.NewClient(config.Token, opts...) //nolint:staticcheck // deprecated API, migration planned
 	} else {
-		client, err = gitlab.NewClient("", opts...)
+		client, err = gitlab.NewClient("", opts...) //nolint:staticcheck // deprecated API, migration planned
 	}
 
 	if err != nil {
@@ -55,8 +58,8 @@ func (g *GitLabClient) ListFiles(ctx context.Context, owner, repo, ref, path str
 
 	// Configure options for listing tree
 	opts := &gitlab.ListTreeOptions{
-		Path: gitlab.String(path),
-		Ref:  gitlab.String(ref),
+		Path: gitlab.String(path), //nolint:staticcheck // deprecated helper, migration planned
+		Ref:  gitlab.String(ref),  //nolint:staticcheck // deprecated helper, migration planned
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
 		},
@@ -72,17 +75,24 @@ func (g *GitLabClient) ListFiles(ctx context.Context, owner, repo, ref, path str
 	if err != nil {
 		return nil, fmt.Errorf("failed to list files from GitLab: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+		}
+	}()
 
 	// Convert GitLab's TreeNode to our FileInfo format
 	files := make([]FileInfo, 0, len(trees))
 	for _, node := range trees {
-		fileType := node.Type
+		var fileType string
 		// Normalize type names to match our interface
-		if fileType == "blob" {
+		switch node.Type {
+		case "blob":
 			fileType = "file"
-		} else if fileType == "tree" {
+		case "tree":
 			fileType = "dir"
+		default:
+			fileType = node.Type
 		}
 
 		fileInfo := FileInfo{
@@ -112,7 +122,11 @@ func (g *GitLabClient) GetRepositoryInfo(ctx context.Context, owner, repo string
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository info from GitLab: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+		}
+	}()
 
 	repoInfo := &RepositoryInfo{
 		ID:            fmt.Sprintf("%d", project.ID),
@@ -143,8 +157,8 @@ func (g *GitLabClient) ListFilesRecursive(ctx context.Context, owner, repo, ref 
 
 	// Get the repository tree recursively
 	opts := &gitlab.ListTreeOptions{
-		Recursive: gitlab.Bool(true),
-		Ref:       gitlab.String(refToUse),
+		Recursive: gitlab.Bool(true),       //nolint:staticcheck // deprecated helper, migration planned
+		Ref:       gitlab.String(refToUse), //nolint:staticcheck // deprecated helper, migration planned
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
 		},
@@ -161,7 +175,11 @@ func (g *GitLabClient) ListFilesRecursive(ctx context.Context, owner, repo, ref 
 		if err != nil {
 			return nil, fmt.Errorf("failed to get repository tree from GitLab: %w", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+			}
+		}()
 
 		// Filter and convert tree nodes to FileInfo
 		for _, node := range trees {
@@ -215,14 +233,18 @@ func (g *GitLabClient) GetFileContent(ctx context.Context, owner, repo, ref, pat
 
 	// Get file content from GitLab API
 	opts := &gitlab.GetFileOptions{
-		Ref: gitlab.String(refToUse),
+		Ref: gitlab.String(refToUse), //nolint:staticcheck // deprecated helper, migration planned
 	}
 
 	file, resp, err := g.client.RepositoryFiles.GetFile(projectID, path, opts, gitlab.WithContext(ctx))
 	if err != nil {
 		return "", fmt.Errorf("failed to get file content from GitLab: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+		}
+	}()
 
 	// GitLab returns base64 encoded content in the Content field
 	// We need to decode it manually

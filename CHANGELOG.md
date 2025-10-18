@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pre-commit hooks now run via `nix develop` in CI to ensure Nix-generated configuration is available
 - Coverage measurement now excludes `cmd/` package (CLI code) to focus on library code quality
 
+### Fixed
+- Resolved all golangci-lint issues:
+  - Removed unused mock code from report tests
+  - Fixed unnecessary nil checks for slices (gosimple S1009)
+  - Removed unnecessary type conversions in test files
+  - Added `.golangci.yml` configuration with appropriate linter settings
+  - Excluded GitLab API deprecation warnings (library migration planned)
+- All linting checks now pass in CI
+
 ### Improved
 - Significantly improved test coverage for library packages:
   - `pkg/config`: 100% coverage (maintained)

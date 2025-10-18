@@ -1,3 +1,5 @@
+// Package main implements the DevDashboard CLI entrypoint providing commands
+// for repository inspection, dependency discovery, analysis, and reporting.
 package main
 
 import (

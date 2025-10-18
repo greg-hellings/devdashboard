@@ -134,6 +134,15 @@ See [examples/](examples/) directory for complete working examples:
 # Run tests
 go test ./...
 
+# Run tests with coverage
+make test-coverage
+
+# Run linting
+make lint
+
+# Run all checks (fmt, lint, vet, test)
+make check
+
 # Build
 make build
 

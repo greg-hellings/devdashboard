@@ -774,7 +774,7 @@ wheels = [
 `
 
 	analyzer := NewUvLockAnalyzer()
-	deps, err := analyzer.parseUvLock(string(content))
+	deps, err := analyzer.parseUvLock(content)
 
 	if err != nil {
 		t.Fatalf("Failed to parse real uv.lock file: %v", err)
@@ -1035,7 +1035,7 @@ wheels = [
 		files: []repository.FileInfo{
 			{Path: "uv.lock", Type: "file"},
 		},
-		content: string(content),
+		content: content,
 	}
 
 	analyzer := NewUvLockAnalyzer()

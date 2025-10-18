@@ -1,3 +1,7 @@
+// Package report provides types and logic for generating dependency analysis
+// reports across multiple repositories. It aggregates analyzer results,
+// normalizes package version information, and offers helpers for rendering
+// human-readable summaries.
 package report
 
 import (
