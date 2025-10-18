@@ -3,6 +3,7 @@ package report
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/greg-hellings/devdashboard/pkg/config"
@@ -247,6 +248,69 @@ func TestGenerate_InvalidAnalyzer(t *testing.T) {
 	if report.Repositories[0].Error == nil {
 		t.Error("Expected error for invalid analyzer")
 	}
+}
+
+func TestGenerate_NoDependencyFilesFound(t *testing.T) {
+	gen := NewGenerator()
+	ctx := context.Background()
+
+	repos := []config.RepoWithProvider{
+		{
+			Provider: "github",
+			Config: config.RepoConfig{
+				Owner:      "test-owner",
+				Repository: "test-repo",
+				Ref:        "main",
+				Analyzer:   "pipfile",
+				Packages:   []string{"django"},
+				// No paths specified, will search for files
+			},
+		},
+	}
+
+	report, err := gen.Generate(ctx, repos)
+	if err != nil {
+		t.Fatalf("Generate should not fail even when no files found: %v", err)
+	}
+
+	if len(report.Repositories) != 1 {
+		t.Fatalf("Expected 1 repository, got %d", len(report.Repositories))
+	}
+
+	if report.Repositories[0].Error == nil {
+		t.Error("Expected error when no dependency files found")
+	}
+}
+
+func TestGenerate_ExplicitPathsWithContent(t *testing.T) {
+	gen := NewGenerator()
+	ctx := context.Background()
+
+	repos := []config.RepoWithProvider{
+		{
+			Provider: "github",
+			Config: config.RepoConfig{
+				Owner:      "test-owner",
+				Repository: "test-repo",
+				Ref:        "main",
+				Analyzer:   "pipfile",
+				Packages:   []string{"django", "requests"},
+				Paths:      []string{"Pipfile.lock"},
+			},
+		},
+	}
+
+	report, err := gen.Generate(ctx, repos)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	if len(report.Repositories) != 1 {
+		t.Fatalf("Expected 1 repository, got %d", len(report.Repositories))
+	}
+
+	// When paths are specified, the report should attempt to analyze them
+	// The actual analysis will fail with our mock client, but that's ok
 }
 
 func TestGetPackageVersions_NoPackages(t *testing.T) {
@@ -590,5 +654,183 @@ func TestRepositoryReport_Structure(t *testing.T) {
 
 	if report.Dependencies["package1"] != "1.0.0" {
 		t.Errorf("Expected package1 version '1.0.0', got '%s'", report.Dependencies["package1"])
+	}
+}
+
+func TestReport_Structure(t *testing.T) {
+	report := &Report{
+		Packages: []string{"pkg1", "pkg2", "pkg3"},
+		Repositories: []RepositoryReport{
+			{Owner: "owner1", Repository: "repo1"},
+			{Owner: "owner2", Repository: "repo2"},
+		},
+	}
+
+	if len(report.Packages) != 3 {
+		t.Errorf("Expected 3 packages, got %d", len(report.Packages))
+	}
+
+	if len(report.Repositories) != 2 {
+		t.Errorf("Expected 2 repositories, got %d", len(report.Repositories))
+	}
+}
+
+func TestPackageVersions_Structure(t *testing.T) {
+	pv := PackageVersions{
+		PackageName: "test-package",
+		Versions: map[string][]string{
+			"1.0.0": {"repo1", "repo2"},
+			"2.0.0": {"repo3"},
+		},
+	}
+
+	if pv.PackageName != "test-package" {
+		t.Errorf("Expected package name 'test-package', got '%s'", pv.PackageName)
+	}
+
+	if len(pv.Versions) != 2 {
+		t.Errorf("Expected 2 versions, got %d", len(pv.Versions))
+	}
+
+	if len(pv.Versions["1.0.0"]) != 2 {
+		t.Errorf("Expected 2 repos with version 1.0.0, got %d", len(pv.Versions["1.0.0"]))
+	}
+}
+
+func TestGenerate_ConcurrentRepositories(t *testing.T) {
+	gen := NewGenerator()
+	ctx := context.Background()
+
+	// Create multiple repositories to test concurrent analysis
+	repos := []config.RepoWithProvider{
+		{
+			Provider: "github",
+			Config: config.RepoConfig{
+				Owner:      "owner1",
+				Repository: "repo1",
+				Ref:        "main",
+				Analyzer:   "pipfile",
+				Packages:   []string{"pkg1"},
+				Paths:      []string{"Pipfile.lock"},
+			},
+		},
+		{
+			Provider: "github",
+			Config: config.RepoConfig{
+				Owner:      "owner2",
+				Repository: "repo2",
+				Ref:        "main",
+				Analyzer:   "pipfile",
+				Packages:   []string{"pkg2"},
+				Paths:      []string{"Pipfile.lock"},
+			},
+		},
+		{
+			Provider: "github",
+			Config: config.RepoConfig{
+				Owner:      "owner3",
+				Repository: "repo3",
+				Ref:        "main",
+				Analyzer:   "pipfile",
+				Packages:   []string{"pkg3"},
+				Paths:      []string{"Pipfile.lock"},
+			},
+		},
+		{
+			Provider: "github",
+			Config: config.RepoConfig{
+				Owner:      "owner4",
+				Repository: "repo4",
+				Ref:        "main",
+				Analyzer:   "pipfile",
+				Packages:   []string{"pkg4"},
+				Paths:      []string{"Pipfile.lock"},
+			},
+		},
+		{
+			Provider: "github",
+			Config: config.RepoConfig{
+				Owner:      "owner5",
+				Repository: "repo5",
+				Ref:        "main",
+				Analyzer:   "pipfile",
+				Packages:   []string{"pkg5"},
+				Paths:      []string{"Pipfile.lock"},
+			},
+		},
+	}
+
+	report, err := gen.Generate(ctx, repos)
+	if err != nil {
+		t.Fatalf("Generate failed with concurrent repos: %v", err)
+	}
+
+	if len(report.Repositories) != 5 {
+		t.Errorf("Expected 5 repositories, got %d", len(report.Repositories))
+	}
+
+	// Verify all repositories were analyzed (even if with errors)
+	for i, repoReport := range report.Repositories {
+		expectedOwner := fmt.Sprintf("owner%d", i+1)
+		if repoReport.Owner != expectedOwner {
+			t.Errorf("Repository %d: expected owner %s, got %s", i, expectedOwner, repoReport.Owner)
+		}
+	}
+
+	// Verify packages are collected from all repos
+	if len(report.Packages) != 5 {
+		t.Errorf("Expected 5 unique packages, got %d", len(report.Packages))
+	}
+}
+
+func TestGenerate_MixedPackages(t *testing.T) {
+	gen := NewGenerator()
+	ctx := context.Background()
+
+	repos := []config.RepoWithProvider{
+		{
+			Provider: "github",
+			Config: config.RepoConfig{
+				Owner:      "owner1",
+				Repository: "repo1",
+				Ref:        "main",
+				Analyzer:   "pipfile",
+				Packages:   []string{"django", "flask"},
+				Paths:      []string{"Pipfile.lock"},
+			},
+		},
+		{
+			Provider: "github",
+			Config: config.RepoConfig{
+				Owner:      "owner2",
+				Repository: "repo2",
+				Ref:        "main",
+				Analyzer:   "poetry",
+				Packages:   []string{"flask", "requests"},
+				Paths:      []string{"poetry.lock"},
+			},
+		},
+	}
+
+	report, err := gen.Generate(ctx, repos)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	// Should have 3 unique packages: django, flask, requests
+	if len(report.Packages) != 3 {
+		t.Errorf("Expected 3 unique packages, got %d", len(report.Packages))
+	}
+
+	// Verify packages are sorted
+	expectedPackages := []string{"django", "flask", "requests"}
+	for i, pkg := range expectedPackages {
+		if i >= len(report.Packages) {
+			t.Errorf("Missing package: %s", pkg)
+			continue
+		}
+		if report.Packages[i] != pkg {
+			t.Errorf("Expected package[%d] = %s, got %s", i, pkg, report.Packages[i])
+		}
 	}
 }

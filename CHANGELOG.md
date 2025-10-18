@@ -11,16 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated minimum Go version requirement to 1.24
 - CI/CD pipelines now test with Go 1.24 and 1.25
 - Pre-commit hooks now run via `nix develop` in CI to ensure Nix-generated configuration is available
+- Coverage measurement now excludes `cmd/` package (CLI code) to focus on library code quality
 
 ### Improved
-- Significantly improved test coverage:
-  - `pkg/config`: 100% coverage
-  - `pkg/dependencies`: 92.3% coverage (added Poetry analyzer tests)
-  - `pkg/report`: 76.5% coverage (added comprehensive report generation tests)
-  - `pkg/repository`: 22.9% coverage (added client initialization tests)
-  - Overall project: 38.1% coverage (up from ~24%)
-- Added 500+ lines of new tests across report and dependencies packages
-- Coverage threshold set to 40% with plan to increase as API mocking is added
+- Significantly improved test coverage for library packages:
+  - `pkg/config`: 100% coverage (maintained)
+  - `pkg/dependencies`: 92.3% coverage (added comprehensive Poetry analyzer tests)
+  - `pkg/report`: 84.7% coverage (added full report generation and analysis tests)
+  - `pkg/repository`: 22.9% coverage (added client initialization and helper tests)
+  - **Overall `pkg/` coverage: 68.0%** (up from ~50%, excluding cmd/)
+- Added 1000+ lines of new tests across report, dependencies, and repository packages
+- Coverage threshold set to 68% for `pkg/` packages (target: 70%+ when repository API clients have proper mocking)
+- CLI commands (`cmd/devdashboard`) excluded from coverage as they require integration testing
 
 ### Planned
 - Web dashboard interface

@@ -90,6 +90,31 @@ func TestPipfileAnalyzer_CandidateFiles(t *testing.T) {
 			want:        nil,
 			wantErr:     true,
 		},
+		{
+			name: "handles multiple search paths",
+			mockFiles: []repository.FileInfo{
+				{Path: "backend/Pipfile.lock", Type: "file"},
+				{Path: "frontend/Pipfile.lock", Type: "file"},
+				{Path: "services/api/Pipfile.lock", Type: "file"},
+			},
+			searchPaths: []string{"backend", "frontend"},
+			want: []DependencyFile{
+				{Path: "backend/Pipfile.lock", Type: "Pipfile.lock", Analyzer: "pipfile"},
+				{Path: "frontend/Pipfile.lock", Type: "Pipfile.lock", Analyzer: "pipfile"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "no files when wrong extension",
+			mockFiles: []repository.FileInfo{
+				{Path: "Pipfile", Type: "file"},
+				{Path: "requirements.txt", Type: "file"},
+				{Path: "setup.py", Type: "file"},
+			},
+			searchPaths: []string{""},
+			want:        []DependencyFile{},
+			wantErr:     false,
+		},
 	}
 
 	for _, tt := range tests {
