@@ -1,722 +1,324 @@
-# DevDashboard CLI Guide
+# DevDashboard CLI Guide (Simplified)
 
-Complete guide to using the DevDashboard command-line interface.
+This guide documents the current DevDashboard command-line interface.
+The CLI now focuses exclusively on generating cross-repository dependency version reports via a single command: `dependency-report`.
 
-## Table of Contents
+---
 
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Commands](#commands)
-  - [Repository Commands](#repository-commands)
-  - [Dependency Commands](#dependency-commands)
-- [Environment Variables](#environment-variables)
-- [Common Workflows](#common-workflows)
-- [Examples](#examples)
-- [Troubleshooting](#troubleshooting)
+## Overview
+
+The `dependency-report` command:
+- Reads a YAML configuration file describing providers, repositories, analyzers, and package names you want to track.
+- Retrieves dependency information from each repository using the configured analyzer (currently Poetry for Python).
+- Produces either:
+  - An adaptive console table (default), or
+  - Structured JSON suitable for automation.
+
+Legacy commands (`repo-info`, `list-files`, `find-dependencies`, `analyze-dependencies`) have been removed to streamline functionality.
+
+---
 
 ## Installation
 
-### Build from Source
-
 ```bash
+git clone https://github.com/greg-hellings/devdashboard.git
 cd devdashboard
 go build -o devdashboard ./cmd/devdashboard
+# Optional global install:
+# go install ./cmd/devdashboard
 ```
 
-### Install to PATH
-
+Check version:
 ```bash
-make install
-# Or manually:
-go install ./cmd/devdashboard
+./devdashboard version
 ```
+
+---
 
 ## Quick Start
 
-The CLI uses environment variables for configuration. Set up your environment and run commands:
+1. Create a configuration file (e.g. `repos.yaml`):
+
+```yaml
+providers:
+  - name: github
+    token: ""     # or set a PAT for private repos
+
+repositories:
+  - provider: github
+    owner: python-poetry
+    repository: poetry
+    analyzer: poetry
+    packages:
+      - poetry
+      - requests
+      - virtualenv
+```
+
+2. Run the report:
 
 ```bash
-# Set up repository access
-export REPO_PROVIDER=github
-export REPO_OWNER=golang
-export REPO_NAME=go
-
-# Get repository information
-devdashboard repo-info
-
-# List all files
-devdashboard list-files
-
-# Find dependency files
-export ANALYZER_TYPE=poetry
-devdashboard find-dependencies
+./devdashboard dependency-report repos.yaml
 ```
 
-## Commands
-
-### Repository Commands
-
-#### `repo-info`
-
-Get metadata about a repository.
-
-**Required Environment Variables:**
-- `REPO_PROVIDER` - Repository provider (github, gitlab)
-- `REPO_OWNER` - Repository owner/organization
-- `REPO_NAME` - Repository name
-
-**Optional Environment Variables:**
-- `REPO_TOKEN` - Authentication token for private repos
-- `REPO_BASEURL` - Custom API endpoint for self-hosted instances
-
-**Example:**
+3. JSON output:
 
 ```bash
-export REPO_PROVIDER=github
-export REPO_OWNER=torvalds
-export REPO_NAME=linux
-devdashboard repo-info
+./devdashboard dependency-report repos.yaml --format json --json-indent
 ```
 
-**Output:**
+---
 
-```
-Repository Information (github)
-========================================
-ID:             2325298
-Name:           linux
-Full Name:      torvalds/linux
-Description:    Linux kernel source tree
-Default Branch: master
-URL:            https://github.com/torvalds/linux
-```
+## Configuration File Structure
 
-#### `list-files`
+Top-level keys:
+- `providers`: List of provider definitions.
+  - `name`: Provider identifier (`github`, `gitlab`).
+  - `token`: (Optional) Personal Access Token for private repositories.
+- `repositories`: List of repositories to analyze.
+  - `provider`: Matches a provider name.
+  - `owner`: Account/org/group.
+  - `repository`: Repository name.
+  - `ref`: (Optional) Branch/tag/commit (default: provider default branch).
+  - `analyzer`: Dependency analyzer (currently `poetry`).
+  - `paths`: (Optional) Explicit dependency file paths — skips auto-discovery.
+  - `packages`: List of package names to track across all repos.
 
-List all files in a repository recursively.
+Example with multiple providers:
 
-**Required Environment Variables:**
-- `REPO_PROVIDER` - Repository provider
-- `REPO_OWNER` - Repository owner
-- `REPO_NAME` - Repository name
+```yaml
+providers:
+  - name: github
+    token: ghp_xxx
+  - name: gitlab
+    token: glpat_xxx
 
-**Optional Environment Variables:**
-- `REPO_REF` - Git reference (branch, tag, commit SHA)
-- `REPO_TOKEN` - Authentication token
-- `REPO_BASEURL` - Custom API endpoint
+repositories:
+  - provider: github
+    owner: org1
+    repository: service-a
+    analyzer: poetry
+    packages: [requests, fastapi]
 
-**Example:**
-
-```bash
-export REPO_PROVIDER=github
-export REPO_OWNER=golang
-export REPO_NAME=example
-devdashboard list-files
-```
-
-**Output:**
-
-```
-Listing files from github repository: golang/example
-
-Found 71 files:
-
-LICENSE                                                                           (SHA: 2a7cf70d)
-README.md                                                                         (SHA: 88aa3ed2)
-appengine-hello/app.go                                                            (SHA: 2951fe77)
-...
+  - provider: gitlab
+    owner: backend-team
+    repository: billing-api
+    analyzer: poetry
+    packages: [requests, fastapi]
 ```
 
-**With Specific Branch:**
+---
 
-```bash
-export REPO_REF=develop
-devdashboard list-files
-```
+## Command Reference
 
-### Dependency Commands
+### `dependency-report`
 
-#### `find-dependencies`
-
-Find dependency files in a repository.
-
-**Required Environment Variables:**
-- `REPO_PROVIDER` - Repository provider
-- `REPO_OWNER` - Repository owner
-- `REPO_NAME` - Repository name
-
-**Optional Environment Variables:**
-- `ANALYZER_TYPE` - Analyzer type (defaults to `poetry`)
-- `SEARCH_PATHS` - Comma-separated paths to search
-- `REPO_REF` - Git reference
-- `REPO_TOKEN` - Authentication token
-
-**Example:**
-
-```bash
-export REPO_PROVIDER=github
-export REPO_OWNER=python-poetry
-export REPO_NAME=poetry
-export ANALYZER_TYPE=poetry
-devdashboard find-dependencies
-```
-
-**Output:**
-
-```
-Searching for poetry dependency files in python-poetry/poetry
-
-Found 14 dependency file(s):
-
-1. poetry.lock
-   Type: poetry.lock
-   Analyzer: poetry
-
-2. tests/fixtures/deleted_directory_dependency/poetry.lock
-   Type: poetry.lock
-   Analyzer: poetry
-
-...
-```
-
-**Search Specific Paths:**
-
-```bash
-export SEARCH_PATHS="src,packages"
-devdashboard find-dependencies
-```
-
-#### `analyze-dependencies`
-
-Analyze dependencies from dependency files in a repository.
-
-**Required Environment Variables:**
-- `REPO_PROVIDER` - Repository provider
-- `REPO_OWNER` - Repository owner
-- `REPO_NAME` - Repository name
-
-**Optional Environment Variables:**
-- `ANALYZER_TYPE` - Analyzer type (defaults to `poetry`)
-- `SEARCH_PATHS` - Comma-separated paths to search
-- `REPO_REF` - Git reference
-- `REPO_TOKEN` - Authentication token
-
-**Example:**
-
-```bash
-export REPO_PROVIDER=github
-export REPO_OWNER=python-poetry
-export REPO_NAME=poetry
-export ANALYZER_TYPE=poetry
-devdashboard analyze-dependencies
-```
-
-**Output:**
-
-```
-Analyzing poetry dependencies in python-poetry/poetry
-
-Step 1: Finding dependency files...
-Found 14 dependency file(s)
-
-Step 2: Analyzing dependencies...
-
-Analysis Results
-================
-
-File: poetry.lock
-Dependencies: 69
-
-  build                           v1.0.3            [runtime]
-  cachecontrol                    v0.14.0           [runtime]
-  certifi                         v2024.2.2         [runtime]
-  ...
-
---------------------------------------------------------------------------------
-
-Summary
-=======
-Files analyzed: 13
-Total dependencies: 118
-
-Dependencies by type:
-  runtime        : 117
-  optional       : 1
-```
-
-#### `help`
-
-Display help information about all available commands.
-
-**Example:**
-
-```bash
-devdashboard help
-```
-
-## Environment Variables
-
-### Repository Configuration
-
-| Variable | Required | Description | Example |
-|----------|----------|-------------|---------|
-| `REPO_PROVIDER` | Yes | Repository provider | `github`, `gitlab` |
-| `REPO_OWNER` | Yes | Repository owner/org | `torvalds`, `gitlab-org` |
-| `REPO_NAME` | Yes | Repository name | `linux`, `gitlab` |
-| `REPO_REF` | No | Git reference | `master`, `v1.0.0`, `abc123` |
-| `REPO_TOKEN` | No | Authentication token | Your personal access token |
-| `REPO_BASEURL` | No | Custom API endpoint | `https://github.example.com` |
-
-### Dependency Analysis Configuration
-
-| Variable | Required | Description | Example |
-|----------|----------|-------------|---------|
-| `ANALYZER_TYPE` | No | Dependency analyzer | `poetry`, `npm` (default: `poetry`) |
-| `SEARCH_PATHS` | No | Paths to search | `src,packages,services` |
-
-### Setting Environment Variables
-
-**Linux/macOS:**
-
-```bash
-export REPO_PROVIDER=github
-export REPO_OWNER=myorg
-export REPO_NAME=myrepo
-```
-
-**Windows (PowerShell):**
-
-```powershell
-$env:REPO_PROVIDER="github"
-$env:REPO_OWNER="myorg"
-$env:REPO_NAME="myrepo"
-```
-
-**Windows (CMD):**
-
-```cmd
-set REPO_PROVIDER=github
-set REPO_OWNER=myorg
-set REPO_NAME=myrepo
-```
-
-### Using .env Files
-
-Create a `.env` file (add to `.gitignore`):
-
-```bash
-REPO_PROVIDER=github
-REPO_TOKEN=ghp_your_token_here
-REPO_OWNER=myorg
-REPO_NAME=myrepo
-ANALYZER_TYPE=poetry
-```
-
-Load with:
-
-```bash
-export $(cat .env | xargs)
-devdashboard repo-info
-```
-
-## Common Workflows
-
-### Workflow 1: Explore a New Repository
-
-```bash
-# Set up
-export REPO_PROVIDER=github
-export REPO_OWNER=python-poetry
-export REPO_NAME=poetry
-
-# Get basic info
-devdashboard repo-info
-
-# See what files are there
-devdashboard list-files
-
-# Find dependency files
-export ANALYZER_TYPE=poetry
-devdashboard find-dependencies
-
-# Analyze dependencies
-devdashboard analyze-dependencies
-```
-
-### Workflow 2: Analyze Private Repository
-
-```bash
-# Set up with authentication
-export REPO_PROVIDER=github
-export REPO_TOKEN=ghp_your_token_here
-export REPO_OWNER=mycompany
-export REPO_NAME=private-api
-
-# Get repository info
-devdashboard repo-info
-
-# Analyze dependencies
-export ANALYZER_TYPE=poetry
-devdashboard analyze-dependencies
-```
-
-### Workflow 3: Compare Dependencies Across Branches
-
-```bash
-# Analyze main branch
-export REPO_PROVIDER=github
-export REPO_OWNER=myorg
-export REPO_NAME=myrepo
-export REPO_REF=main
-export ANALYZER_TYPE=poetry
-devdashboard analyze-dependencies > deps-main.txt
-
-# Analyze develop branch
-export REPO_REF=develop
-devdashboard analyze-dependencies > deps-develop.txt
-
-# Compare
-diff deps-main.txt deps-develop.txt
-```
-
-### Workflow 4: Audit Multiple Repositories
-
-```bash
-#!/bin/bash
-
-REPOS=(
-    "org1/repo1"
-    "org2/repo2"
-    "org3/repo3"
-)
-
-export REPO_PROVIDER=github
-export ANALYZER_TYPE=poetry
-
-for repo in "${REPOS[@]}"; do
-    IFS='/' read -r owner name <<< "$repo"
-    export REPO_OWNER=$owner
-    export REPO_NAME=$name
-
-    echo "Analyzing $repo..."
-    devdashboard analyze-dependencies > "deps-${owner}-${name}.txt"
-done
-```
-
-### Workflow 5: Search Specific Paths
-
-```bash
-# Only search in source directories
-export REPO_PROVIDER=github
-export REPO_OWNER=myorg
-export REPO_NAME=monorepo
-export SEARCH_PATHS="services/api,services/web,packages/shared"
-export ANALYZER_TYPE=poetry
-
-devdashboard find-dependencies
-```
-
-## Examples
-
-### Example 1: Public GitHub Repository
-
-```bash
-export REPO_PROVIDER=github
-export REPO_OWNER=golang
-export REPO_NAME=go
-
-# Get info
-devdashboard repo-info
-
-# List files
-devdashboard list-files
-```
-
-### Example 2: Private GitLab Repository
-
-```bash
-export REPO_PROVIDER=gitlab
-export REPO_TOKEN=glpat-your-token
-export REPO_OWNER=myteam
-export REPO_NAME=backend-api
-
-devdashboard repo-info
-```
-
-### Example 3: Self-Hosted GitLab
-
-```bash
-export REPO_PROVIDER=gitlab
-export REPO_BASEURL=https://gitlab.company.com
-export REPO_TOKEN=your-token
-export REPO_OWNER=engineering
-export REPO_NAME=platform
-
-devdashboard list-files
-```
-
-### Example 4: Analyze Python Poetry Project
-
-```bash
-export REPO_PROVIDER=github
-export REPO_OWNER=python-poetry
-export REPO_NAME=poetry
-export ANALYZER_TYPE=poetry
-
-# Find all poetry.lock files
-devdashboard find-dependencies
-
-# Analyze all dependencies
-devdashboard analyze-dependencies
-```
-
-### Example 5: Specific Branch Analysis
-
-```bash
-export REPO_PROVIDER=github
-export REPO_OWNER=myorg
-export REPO_NAME=myapp
-export REPO_REF=release/v2.0
-export ANALYZER_TYPE=poetry
-
-devdashboard analyze-dependencies
-```
-
-## Troubleshooting
-
-### Error: "REPO_PROVIDER environment variable is required"
-
-**Problem:** Required environment variable not set.
-
-**Solution:**
-
-```bash
-export REPO_PROVIDER=github
-export REPO_OWNER=owner
-export REPO_NAME=repo
-```
-
-### Error: "failed to create github client"
-
-**Problem:** Invalid provider name.
-
-**Solution:** Use `github` or `gitlab` (case-insensitive):
-
-```bash
-export REPO_PROVIDER=github  # Not "GitHub" or "GITHUB"
-```
-
-### Error: "failed to get repository info"
-
-**Possible Causes:**
-1. Repository doesn't exist
-2. Private repository without authentication
-3. Incorrect owner/name
-4. Network issues
-
-**Solutions:**
-
-```bash
-# Check repository exists
-# Verify owner and name are correct
-
-# For private repos, add token
-export REPO_TOKEN=your-token
-
-# For self-hosted instances
-export REPO_BASEURL=https://your-instance.com
-```
-
-### Error: "No dependency files found"
-
-**Possible Causes:**
-1. Repository doesn't have dependency files
-2. Wrong analyzer type
-3. Search paths exclude the files
-
-**Solutions:**
-
-```bash
-# Verify analyzer type is correct
-export ANALYZER_TYPE=poetry  # For Python projects
-
-# Remove search paths restriction
-unset SEARCH_PATHS
-
-# List all files to see what's there
-devdashboard list-files | grep -i lock
-```
-
-### Error: "context deadline exceeded"
-
-**Problem:** Operation timed out.
-
-**Solution:** Large repositories take time. The timeout is built-in, but you can:
-
-1. Limit search paths:
-   ```bash
-   export SEARCH_PATHS="src"
-   ```
-
-2. Try a different branch with fewer files
-
-3. Check network connection
-
-### Slow Performance
-
-**Problem:** Commands take a long time to run.
-
-**Solutions:**
-
-1. **Limit search scope:**
-   ```bash
-   export SEARCH_PATHS="src,packages"
-   ```
-
-2. **Use specific branches:**
-   ```bash
-   export REPO_REF=release/v1.0  # Smaller than main
-   ```
-
-3. **Cache authentication:**
-   Save token in environment to avoid re-authenticating
-
-### Authentication Issues
-
-**GitHub Personal Access Token:**
-
-1. Go to Settings → Developer settings → Personal access tokens
-2. Generate new token with `repo` scope
-3. Copy token
-4. Set environment variable:
-   ```bash
-   export REPO_TOKEN=ghp_your_token_here
-   ```
-
-**GitLab Personal Access Token:**
-
-1. Go to User Settings → Access Tokens
-2. Create token with `read_api` and `read_repository` scopes
-3. Copy token
-4. Set environment variable:
-   ```bash
-   export REPO_TOKEN=glpat_your_token_here
-   ```
-
-### Rate Limiting
-
-**Problem:** "API rate limit exceeded"
-
-**Solutions:**
-
-1. Use authentication (higher rate limits)
-2. Wait for rate limit to reset
-3. For GitHub: 60 req/hour (anonymous), 5000 req/hour (authenticated)
-
-### Unsupported Analyzer
-
-**Problem:** "unsupported analyzer type: npm"
-
-**Solution:** Currently only `poetry` is supported. More analyzers coming soon.
-
-Check supported analyzers in the codebase or documentation.
-
-## Tips and Best Practices
-
-### 1. Use Shell Aliases
-
-Create aliases for common operations:
-
-```bash
-# Add to .bashrc or .zshrc
-alias dd='devdashboard'
-alias dd-info='devdashboard repo-info'
-alias dd-deps='devdashboard analyze-dependencies'
-
-# Usage
-dd-info
-dd-deps
-```
-
-### 2. Create Helper Scripts
-
-```bash
-#!/bin/bash
-# analyze-repo.sh
-
-export REPO_PROVIDER=${1:-github}
-export REPO_OWNER=$2
-export REPO_NAME=$3
-export ANALYZER_TYPE=${4:-poetry}
-
-devdashboard analyze-dependencies
-```
+Generate a dependency version comparison across all configured repositories.
 
 Usage:
 ```bash
-./analyze-repo.sh github python-poetry poetry poetry
+devdashboard dependency-report <config-file> [flags]
 ```
 
-### 3. Store Tokens Securely
+Required:
+- `<config-file>`: Path to the YAML configuration.
 
-Don't hardcode tokens. Use:
-- Environment variables
-- `.env` files (gitignored)
-- Secret management tools (Vault, AWS Secrets Manager)
-- Credential managers
+#### Flags
 
-### 4. Pipe Output for Processing
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `-f`, `--format` | string | `console` | Output format: `console` or `json` |
+| `-o`, `--out` | string | (stdout) | Write output to file |
+| `--no-color` | bool | false | Disable ANSI colors (console) |
+| `--package-col-width` | int | 0 | Max width of package column (0 = auto) |
+| `--repo-col-width` | int | 0 | Max width per repo/version column (0 = auto) |
+| `--timeout` | duration | 5m | Total reporting timeout |
+| `--fail-on-error` | bool | false | Exit non-zero if any repository fails |
+| `--json-indent` | bool | false | Pretty-print JSON |
+| `--json-include-errors` | bool | true | Include error map in JSON |
+| `-v`, `--verbose` | bool | false | Info-level logging |
+| `--debug` | bool | false | Debug-level logging |
+| `--version` | (root) |  | Show version |
 
+---
+
+## Console Output Format
+
+- Dynamically sized table fitting terminal width.
+- Truncates long values with ellipsis.
+- Marks failed repositories with `ERROR`.
+- Missing package in a repo shown with a dash (—).
+- Summary and error details printed below the table.
+
+Example:
+
+```
+Dependency Version Report (format=console)
+
+┌───────────┬──────────────┬───────────────┐
+│ Package   │ org1/service │ org2/service2 │
+├───────────┼──────────────┼───────────────┤
+│ requests  │ 2.32.3       │ 2.31.0        │
+│ fastapi   │ —            │ 0.110.0       │
+│ poetry    │ ERROR        │ 1.8.3         │
+└───────────┴──────────────┴───────────────┘
+
+Summary:
+  Repositories analyzed: 1/2 successful
+  Packages tracked: 3
+
+Errors:
+  org1/service1                  failed to create analyzer: unsupported analyzer type "..."
+```
+
+---
+
+## JSON Output Format
+
+Example command:
 ```bash
-# Save to file
-devdashboard list-files > files.txt
-
-# Count files
-devdashboard list-files | wc -l
-
-# Filter results
-devdashboard list-files | grep ".py$"
-
-# Process with jq (if output is JSON in future)
-# devdashboard repo-info --json | jq '.name'
+devdashboard dependency-report repos.yaml --format json --json-indent > report.json
 ```
 
-### 5. Use in CI/CD Pipelines
-
-```yaml
-# .github/workflows/analyze-deps.yml
-name: Analyze Dependencies
-
-on: [push]
-
-jobs:
-  analyze:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download DevDashboard
-        run: |
-          curl -L https://github.com/greg-hellings/devdashboard/releases/latest/download/devdashboard-linux > devdashboard
-          chmod +x devdashboard
-
-      - name: Analyze Dependencies
-        env:
-          REPO_PROVIDER: github
-          REPO_OWNER: ${{ github.repository_owner }}
-          REPO_NAME: ${{ github.event.repository.name }}
-          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ANALYZER_TYPE: poetry
-        run: ./devdashboard analyze-dependencies
+Example structure:
+```json
+{
+  "cliVersion": "dev",
+  "generatedAt": "2025-01-30T14:12:05Z",
+  "repositories": [
+    {
+      "Provider": "github",
+      "Owner": "org1",
+      "Repository": "service-a",
+      "Ref": "",
+      "Analyzer": "poetry",
+      "Dependencies": { "requests": "2.32.3" },
+      "Error": null
+    }
+  ],
+  "packages": ["requests", "fastapi"],
+  "summary": {
+    "repositoryCount": 2,
+    "packageCount": 2,
+    "successCount": 1,
+    "errorCount": 1
+  },
+  "errors": {
+    "org2/service-b": "failed to analyze dependencies: no dependency files found"
+  }
+}
 ```
+
+Notes:
+- `Error` inside each repository element is `null` or omitted (marshaled from the internal error field).
+- The `errors` map is omitted if there are no errors or `--json-include-errors=false`.
+
+---
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | General error / invalid config / internal failure |
+| 2 | (Reserved) Future: validation errors |
+| 3 | One or more repos failed AND `--fail-on-error` was set |
+
+Currently, non-zero codes all default to 1 except the explicit `fail-on-error` failure path.
+
+---
+
+## Examples
+
+Console (default):
+```bash
+devdashboard dependency-report repos.yaml
+```
+
+JSON (pretty):
+```bash
+devdashboard dependency-report repos.yaml --format json --json-indent
+```
+
+Write output to file:
+```bash
+devdashboard dependency-report repos.yaml --format json -o out/report.json
+```
+
+Fail build if any repository fails:
+```bash
+devdashboard dependency-report repos.yaml --fail-on-error
+```
+
+Custom widths (wide package names):
+```bash
+devdashboard dependency-report repos.yaml --package-col-width 40 --repo-col-width 18
+```
+
+Disable colors (CI logs):
+```bash
+devdashboard dependency-report repos.yaml --no-color
+```
+
+---
+
+## Best Practices
+
+1. Keep repository list small per invocation when using long timeouts.
+2. Use `--fail-on-error` in CI pipelines to enforce complete success.
+3. Archive JSON reports for historical diffs (e.g., in an artifacts store).
+4. Separate configuration files per team or domain to minimize noise.
+5. Provide tokens only for providers that need private repo access.
+
+---
+
+## Migration Notes (Legacy Removal)
+
+Removed legacy commands:
+- `repo-info`
+- `list-files`
+- `find-dependencies`
+- `analyze-dependencies`
+
+If you previously scripted these, replace workflows with:
+- Use a config file and `dependency-report`.
+- Extend configuration or add analyzers (future enhancements) instead of imperative commands.
+
+---
+
+## Troubleshooting
+
+| Symptom | Possible Cause | Resolution |
+|---------|----------------|-----------|
+| `unsupported analyzer type` | Typo or unsupported analyzer | Use `poetry` (current support) |
+| All repos show `ERROR` | Invalid tokens / network | Verify provider token/scopes |
+| Table too narrow | Small terminal width | Pipe to file or widen terminal; use JSON |
+| JSON missing errors map | No errors or `--json-include-errors=false` | Remove the flag or re-run without it |
+| Exit code 1 with valid config | Internal failure / timeout | Increase `--timeout` or run with `--debug` |
+
+Enable debug logs:
+```bash
+devdashboard --debug dependency-report repos.yaml
+```
+
+---
+
+## Roadmap (Planned Enhancements)
+
+- Additional analyzers (npm, cargo, maven)
+- Optional caching of repository content
+- HTML or Markdown report exporters
+- Policy evaluation (e.g., version drift detection)
+
+---
 
 ## Getting Help
 
-- Run `devdashboard help` for command overview
-- Check [README.md](../README.md) for full documentation
-- See [DEPENDENCIES.md](DEPENDENCIES.md) for dependency analysis details
-- Review [examples/](../examples/) for code examples
+- Run `devdashboard dependency-report --help`
+- Inspect errors with `--debug`
+- Review repository documentation (README + docs/)
+- Open issues on GitHub if you encounter reproducible problems
 
-## Next Steps
+---
 
-- Try the [example programs](../examples/)
-- Learn about [extending the tool](DEPENDENCY_IMPLEMENTATION.md)
-- Contribute to the project!
+**Happy reporting!**

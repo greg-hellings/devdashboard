@@ -1,642 +1,330 @@
-// Package main implements the DevDashboard CLI entrypoint providing commands
-// for repository inspection, dependency discovery, analysis, and reporting.
+// Package main provides the CLI entrypoint for DevDashboard.
+// It initializes logging and defines Cobra commands for generating
+// dependency reports in console or JSON formats.
 package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/greg-hellings/devdashboard/pkg/config"
-	"github.com/greg-hellings/devdashboard/pkg/dependencies"
 	"github.com/greg-hellings/devdashboard/pkg/report"
-	"github.com/greg-hellings/devdashboard/pkg/repository"
+	consolefmt "github.com/greg-hellings/devdashboard/pkg/report/format"
+	"github.com/spf13/cobra"
 )
 
+// build-time override (e.g. -ldflags "-X main.version=1.2.3")
+var version = "dev"
+
+// Global (root-level) flag variables
+var (
+	flagVerbose bool
+	flagDebug   bool
+)
+
+// dependency-report command flags
+type depReportFlags struct {
+	outputFormat      string
+	outputFile        string
+	noColor           bool
+	packageColWidth   int
+	repoColWidth      int
+	timeout           time.Duration
+	failOnRepoError   bool
+	jsonIndent        bool
+	jsonIncludeErrors bool
+}
+
+var depFlags depReportFlags
+
 func main() {
-	// Initialize logging
-	initLogging()
+	root := newRootCmd()
+	root.SilenceUsage = true
+	root.SilenceErrors = true
 
-	// Filter out flags to find the actual command
-	command := ""
-	for _, arg := range os.Args[1:] {
-		if !strings.HasPrefix(arg, "-") {
-			command = arg
-			break
-		}
-	}
-
-	if command == "" {
-		printUsage()
+	if err := root.Execute(); err != nil {
+		// If Execute() returns an error, logging may or may not be initialized yet.
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+}
 
-	switch command {
-	case "list-files":
-		if err := listFiles(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-	case "repo-info":
-		if err := repoInfo(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-	case "find-dependencies":
-		if err := findDependencies(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-	case "analyze-dependencies":
-		if err := analyzeDependencies(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-	case "dependency-report":
-		if err := dependencyReport(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-	case "help":
-		printUsage()
-	default:
-		fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", command)
-		printUsage()
-		os.Exit(1)
+// newRootCmd creates the root Cobra command.
+func newRootCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "devdashboard",
+		Short: "DevDashboard CLI",
+		Long: strings.TrimSpace(`
+DevDashboard - Dependency reporting tool
+
+Current focus: Generate a cross-repository dependency version report using a
+configuration file that declares providers, repositories, analyzers, and the
+packages to track.`),
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			initLogging()
+			return nil
+		},
 	}
+
+	// Global flags
+	cmd.PersistentFlags().BoolVarP(&flagVerbose, "verbose", "v", false, "Enable verbose (info) logging")
+	cmd.PersistentFlags().BoolVar(&flagDebug, "debug", false, "Enable debug logging (overrides --verbose)")
+	cmd.Version = version
+
+	// Add subcommands
+	cmd.AddCommand(newDependencyReportCmd())
+	cmd.AddCommand(newVersionCmd())
+
+	return cmd
+}
+
+// newVersionCmd prints version info (simple helper).
+func newVersionCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Show version information",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("DevDashboard version: %s\n", version)
+		},
+	}
+}
+
+// newDependencyReportCmd creates the 'dependency-report' subcommand.
+func newDependencyReportCmd() *cobra.Command {
+	c := &cobra.Command{
+		Use:   "dependency-report <config-file>",
+		Short: "Generate a dependency version report across repositories",
+		Long: strings.TrimSpace(`
+Generate a cross-repository dependency version report defined by a YAML
+configuration file. The configuration specifies providers, repositories,
+analyzer type, and the packages to track.
+
+Formats:
+  console (default) - adaptive terminal table
+  json              - machine-readable JSON
+
+Examples:
+  devdashboard dependency-report repos.yaml
+  devdashboard dependency-report repos.yaml --format json --json-indent
+  devdashboard dependency-report repos.yaml --format console --no-color
+`),
+		Args: cobra.ExactArgs(1),
+		RunE: runDependencyReport,
+	}
+
+	c.Flags().StringVarP(&depFlags.outputFormat, "format", "f", "console", "Output format: console|json")
+	c.Flags().StringVarP(&depFlags.outputFile, "out", "o", "", "Write output to file instead of stdout")
+	c.Flags().BoolVar(&depFlags.noColor, "no-color", false, "Disable ANSI colors (console format)")
+	c.Flags().IntVar(&depFlags.packageColWidth, "package-col-width", 0, "Max width of package column (console format; 0=auto)")
+	c.Flags().IntVar(&depFlags.repoColWidth, "repo-col-width", 0, "Max width of repository/version columns (console format; 0=auto)")
+	c.Flags().DurationVar(&depFlags.timeout, "timeout", 5*time.Minute, "Timeout for generating the report")
+	c.Flags().BoolVar(&depFlags.failOnRepoError, "fail-on-error", false, "Exit with non-zero status if any repository failed to analyze")
+	c.Flags().BoolVar(&depFlags.jsonIndent, "json-indent", false, "Pretty-print JSON output")
+	c.Flags().BoolVar(&depFlags.jsonIncludeErrors, "json-include-errors", true, "Include repository errors section in JSON output")
+
+	return c
 }
 
 func initLogging() {
-	// Check for verbosity flags
-	verbose := false
-	debug := false
-
-	for _, arg := range os.Args {
-		if arg == "-v" || arg == "--verbose" {
-			verbose = true
-		}
-		if arg == "-vv" || arg == "--debug" {
-			debug = true
-		}
-	}
-
-	// Set log level based on flags
+	// If already initialized (e.g., multiple subcommands), skip.
+	// We rely on slog default logger replacement here idempotently.
 	var level slog.Level
-	if debug {
+	switch {
+	case flagDebug:
 		level = slog.LevelDebug
-	} else if verbose {
+	case flagVerbose:
 		level = slog.LevelInfo
-	} else {
+	default:
 		level = slog.LevelWarn
 	}
 
-	// Create a new text handler with the appropriate level
 	handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 		Level: level,
 	})
-
-	// Set the default logger
 	slog.SetDefault(slog.New(handler))
-
 	slog.Debug("Logging initialized", "level", level.String())
 }
 
-func printUsage() {
-	fmt.Println("DevDashboard CLI - Repository Management Tool")
-	fmt.Println("\nUsage: devdashboard [flags] <command> [arguments]")
-	fmt.Println("\nFlags:")
-	fmt.Println("  -v, --verbose         Enable verbose output (INFO level)")
-	fmt.Println("  -vv, --debug          Enable debug output (DEBUG level)")
-	fmt.Println("\nRepository Commands:")
-	fmt.Println("  list-files            List files in a repository")
-	fmt.Println("  repo-info             Get repository information")
-	fmt.Println("\nDependency Commands:")
-	fmt.Println("  find-dependencies     Find dependency files in a repository")
-	fmt.Println("  analyze-dependencies  Analyze dependencies from dependency files")
-	fmt.Println("  dependency-report     Generate dependency version report across repositories")
-	fmt.Println("\nGeneral:")
-	fmt.Println("  help                  Show this help message")
-	fmt.Println("\nEnvironment Variables:")
-	fmt.Println("  REPO_PROVIDER      Repository provider (github, gitlab)")
-	fmt.Println("  REPO_TOKEN         Authentication token for private repositories")
-	fmt.Println("  REPO_BASEURL       Custom base URL for self-hosted instances")
-	fmt.Println("  REPO_OWNER         Repository owner/organization")
-	fmt.Println("  REPO_NAME          Repository name")
-	fmt.Println("  REPO_REF           Git reference (branch/tag/commit, optional)")
-	fmt.Println("  ANALYZER_TYPE      Dependency analyzer type (poetry, pipfile, uvlock)")
-	fmt.Println("  SEARCH_PATHS       Comma-separated paths to search (optional)")
-	fmt.Println("\nExamples:")
-	fmt.Println("  # Repository operations")
-	fmt.Println("  export REPO_PROVIDER=github")
-	fmt.Println("  export REPO_OWNER=torvalds")
-	fmt.Println("  export REPO_NAME=linux")
-	fmt.Println("  devdashboard list-files")
-	fmt.Println()
-	fmt.Println("  # With verbose output")
-	fmt.Println("  devdashboard -v list-files")
-	fmt.Println()
-	fmt.Println("  # With debug output")
-	fmt.Println("  devdashboard --debug find-dependencies")
-	fmt.Println()
-	fmt.Println("  # Find Poetry lock files")
-	fmt.Println("  export REPO_PROVIDER=github")
-	fmt.Println("  export REPO_OWNER=python-poetry")
-	fmt.Println("  export REPO_NAME=poetry")
-	fmt.Println("  export ANALYZER_TYPE=poetry")
-	fmt.Println("  devdashboard find-dependencies")
-	fmt.Println()
-	fmt.Println("  # Analyze dependencies")
-	fmt.Println("  export ANALYZER_TYPE=poetry")
-	fmt.Println("  devdashboard analyze-dependencies")
-	fmt.Println()
-	fmt.Println("  # Generate dependency report")
-	fmt.Println("  devdashboard dependency-report config.yaml")
-}
+// runDependencyReport executes the core logic for dependency-report.
+func runDependencyReport(cmd *cobra.Command, args []string) error {
+	start := time.Now()
+	configFile := args[0]
+
+	slog.Info("Starting dependency report",
+		"configFile", configFile,
+		"format", depFlags.outputFormat)
 
-func getConfig() (repository.Config, error) {
-	token := os.Getenv("REPO_TOKEN")
-	baseURL := os.Getenv("REPO_BASEURL")
-
-	return repository.Config{
-		Token:   token,
-		BaseURL: baseURL,
-	}, nil
-}
-
-func getRepositoryParams() (provider, owner, repo, ref string, err error) {
-	provider = os.Getenv("REPO_PROVIDER")
-	if provider == "" {
-		return "", "", "", "", fmt.Errorf("REPO_PROVIDER environment variable is required")
-	}
-
-	owner = os.Getenv("REPO_OWNER")
-	if owner == "" {
-		return "", "", "", "", fmt.Errorf("REPO_OWNER environment variable is required")
-	}
-
-	repo = os.Getenv("REPO_NAME")
-	if repo == "" {
-		return "", "", "", "", fmt.Errorf("REPO_NAME environment variable is required")
-	}
-
-	ref = os.Getenv("REPO_REF") // Optional
-
-	return provider, owner, repo, ref, nil
-}
-
-func listFiles() error {
-	slog.Debug("Starting list-files command")
-
-	config, err := getConfig()
-	if err != nil {
-		return err
-	}
-
-	provider, owner, repo, ref, err := getRepositoryParams()
-	if err != nil {
-		return err
-	}
-
-	slog.Info("Listing repository files",
-		"provider", provider,
-		"owner", owner,
-		"repo", repo,
-		"ref", ref)
-
-	// Create client using the factory
-	client, err := repository.NewClient(provider, config)
-	if err != nil {
-		return fmt.Errorf("failed to create %s client: %w", provider, err)
-	}
-
-	// Create context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	fmt.Printf("Listing files from %s repository: %s/%s\n", provider, owner, repo)
-	if ref != "" {
-		fmt.Printf("Reference: %s\n", ref)
-	}
-	fmt.Println()
-
-	// List files recursively
-	files, err := client.ListFilesRecursive(ctx, owner, repo, ref)
-	if err != nil {
-		return fmt.Errorf("failed to list files: %w", err)
-	}
-
-	slog.Info("Files retrieved", "count", len(files))
-	fmt.Printf("Found %d files:\n\n", len(files))
-	for _, file := range files {
-		fmt.Printf("%-80s  (SHA: %s)\n", file.Path, file.SHA[:8])
-	}
-
-	return nil
-}
-
-func findDependencies() error {
-	slog.Debug("Starting find-dependencies command")
-
-	config, err := getConfig()
-	if err != nil {
-		return err
-	}
-
-	provider, owner, repo, ref, err := getRepositoryParams()
-	if err != nil {
-		return err
-	}
-
-	// Get analyzer type
-	analyzerType := os.Getenv("ANALYZER_TYPE")
-	if analyzerType == "" {
-		analyzerType = "poetry" // Default to poetry
-	}
-
-	slog.Info("Finding dependency files",
-		"provider", provider,
-		"owner", owner,
-		"repo", repo,
-		"ref", ref,
-		"analyzer", analyzerType)
-
-	// Create repository client
-	repoClient, err := repository.NewClient(provider, config)
-	if err != nil {
-		return fmt.Errorf("failed to create %s client: %w", provider, err)
-	}
-
-	// Create dependency analyzer
-	analyzer, err := dependencies.NewAnalyzer(analyzerType)
-	if err != nil {
-		return fmt.Errorf("failed to create %s analyzer: %w", analyzerType, err)
-	}
-
-	// Parse search paths
-	var searchPaths []string
-	searchPathsEnv := os.Getenv("SEARCH_PATHS")
-	if searchPathsEnv != "" {
-		searchPaths = strings.Split(searchPathsEnv, ",")
-		// Trim whitespace from each path
-		for i := range searchPaths {
-			searchPaths[i] = strings.TrimSpace(searchPaths[i])
-		}
-	}
-
-	// Configure dependency analyzer
-	depConfig := dependencies.Config{
-		RepositoryPaths:  searchPaths,
-		RepositoryClient: repoClient,
-	}
-
-	// Create context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	fmt.Printf("Searching for %s dependency files in %s/%s\n", analyzerType, owner, repo)
-	if ref != "" {
-		fmt.Printf("Reference: %s\n", ref)
-	}
-	if len(searchPaths) > 0 {
-		fmt.Printf("Search paths: %v\n", searchPaths)
-	}
-	fmt.Println()
-
-	// Find candidate files
-	candidates, err := analyzer.CandidateFiles(ctx, owner, repo, ref, depConfig)
-	if err != nil {
-		return fmt.Errorf("failed to find dependency files: %w", err)
-	}
-
-	slog.Info("Candidate files found", "count", len(candidates))
-
-	if len(candidates) == 0 {
-		fmt.Println("No dependency files found")
-		return nil
-	}
-
-	fmt.Printf("Found %d dependency file(s):\n\n", len(candidates))
-	for i, candidate := range candidates {
-		fmt.Printf("%d. %s\n", i+1, candidate.Path)
-		fmt.Printf("   Type: %s\n", candidate.Type)
-		fmt.Printf("   Analyzer: %s\n", candidate.Analyzer)
-		fmt.Println()
-	}
-
-	return nil
-}
-
-func analyzeDependencies() error {
-	slog.Debug("Starting analyze-dependencies command")
-
-	config, err := getConfig()
-	if err != nil {
-		return err
-	}
-
-	provider, owner, repo, ref, err := getRepositoryParams()
-	if err != nil {
-		return err
-	}
-
-	// Get analyzer type
-	analyzerType := os.Getenv("ANALYZER_TYPE")
-	if analyzerType == "" {
-		analyzerType = "poetry" // Default to poetry
-	}
-
-	slog.Info("Analyzing dependencies",
-		"provider", provider,
-		"owner", owner,
-		"repo", repo,
-		"ref", ref,
-		"analyzer", analyzerType)
-
-	// Create repository client
-	repoClient, err := repository.NewClient(provider, config)
-	if err != nil {
-		return fmt.Errorf("failed to create %s client: %w", provider, err)
-	}
-
-	// Create dependency analyzer
-	analyzer, err := dependencies.NewAnalyzer(analyzerType)
-	if err != nil {
-		return fmt.Errorf("failed to create %s analyzer: %w", analyzerType, err)
-	}
-
-	// Parse search paths
-	var searchPaths []string
-	searchPathsEnv := os.Getenv("SEARCH_PATHS")
-	if searchPathsEnv != "" {
-		searchPaths = strings.Split(searchPathsEnv, ",")
-		for i := range searchPaths {
-			searchPaths[i] = strings.TrimSpace(searchPaths[i])
-		}
-	}
-
-	// Configure dependency analyzer
-	depConfig := dependencies.Config{
-		RepositoryPaths:  searchPaths,
-		RepositoryClient: repoClient,
-	}
-
-	// Create context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
-
-	fmt.Printf("Analyzing %s dependencies in %s/%s\n", analyzerType, owner, repo)
-	if ref != "" {
-		fmt.Printf("Reference: %s\n", ref)
-	}
-	fmt.Println()
-
-	// Find candidate files
-	fmt.Println("Step 1: Finding dependency files...")
-	candidates, err := analyzer.CandidateFiles(ctx, owner, repo, ref, depConfig)
-	if err != nil {
-		return fmt.Errorf("failed to find dependency files: %w", err)
-	}
-
-	slog.Info("Candidate files found", "count", len(candidates))
-
-	if len(candidates) == 0 {
-		fmt.Println("No dependency files found")
-		return nil
-	}
-
-	fmt.Printf("Found %d dependency file(s)\n\n", len(candidates))
-
-	// Analyze dependencies
-	fmt.Println("Step 2: Analyzing dependencies...")
-	slog.Debug("Starting dependency analysis", "fileCount", len(candidates))
-	results, err := analyzer.AnalyzeDependencies(ctx, owner, repo, ref, candidates, depConfig)
-	if err != nil {
-		return fmt.Errorf("failed to analyze dependencies: %w", err)
-	}
-
-	slog.Info("Dependency analysis complete", "filesAnalyzed", len(results))
-
-	// Display results
-	fmt.Println()
-	fmt.Println("Analysis Results")
-	fmt.Println("================")
-	fmt.Println()
-
-	totalDeps := 0
-	typeCount := make(map[string]int)
-
-	for filePath, deps := range results {
-		fmt.Printf("File: %s\n", filePath)
-		fmt.Printf("Dependencies: %d\n", len(deps))
-		fmt.Println()
-
-		// Display first 20 dependencies
-		displayCount := 20
-		if len(deps) < displayCount {
-			displayCount = len(deps)
-		}
-
-		for i := 0; i < displayCount; i++ {
-			dep := deps[i]
-			fmt.Printf("  %-35s v%-15s [%s]\n", dep.Name, dep.Version, dep.Type)
-			typeCount[dep.Type]++
-			totalDeps++
-		}
-
-		if len(deps) > displayCount {
-			fmt.Printf("\n  ... and %d more dependencies\n", len(deps)-displayCount)
-			// Count remaining dependencies
-			for i := displayCount; i < len(deps); i++ {
-				typeCount[deps[i].Type]++
-				totalDeps++
-			}
-		}
-
-		fmt.Println()
-		fmt.Println(strings.Repeat("-", 80))
-		fmt.Println()
-	}
-
-	// Summary
-	fmt.Println("Summary")
-	fmt.Println("=======")
-	fmt.Printf("Files analyzed: %d\n", len(results))
-	fmt.Printf("Total dependencies: %d\n", totalDeps)
-
-	if len(typeCount) > 0 {
-		fmt.Println("\nDependencies by type:")
-		for depType, count := range typeCount {
-			fmt.Printf("  %-15s: %d\n", depType, count)
-		}
-	}
-
-	return nil
-}
-
-func repoInfo() error {
-	slog.Debug("Starting repo-info command")
-
-	config, err := getConfig()
-	if err != nil {
-		return err
-	}
-
-	provider, owner, repo, _, err := getRepositoryParams()
-	if err != nil {
-		return err
-	}
-
-	slog.Info("Getting repository information",
-		"provider", provider,
-		"owner", owner,
-		"repo", repo)
-
-	// Create client using the factory
-	client, err := repository.NewClient(provider, config)
-	if err != nil {
-		return fmt.Errorf("failed to create %s client: %w", provider, err)
-	}
-
-	// Create context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Get repository info
-	info, err := client.GetRepositoryInfo(ctx, owner, repo)
-	if err != nil {
-		return fmt.Errorf("failed to get repository info: %w", err)
-	}
-
-	fmt.Printf("Repository Information (%s)\n", provider)
-	fmt.Println("========================================")
-	fmt.Printf("ID:             %s\n", info.ID)
-	fmt.Printf("Name:           %s\n", info.Name)
-	fmt.Printf("Full Name:      %s\n", info.FullName)
-	fmt.Printf("Description:    %s\n", info.Description)
-	fmt.Printf("Default Branch: %s\n", info.DefaultBranch)
-	fmt.Printf("URL:            %s\n", info.URL)
-
-	return nil
-}
-
-func dependencyReport() error {
-	slog.Debug("Starting dependency-report command")
-
-	// Get config file from arguments
-	args := os.Args
-	var configFile string
-
-	// Find config file argument (skip flags and command name)
-	for i, arg := range args {
-		if arg == "dependency-report" && i+1 < len(args) {
-			// Next argument should be the config file
-			if !strings.HasPrefix(args[i+1], "-") {
-				configFile = args[i+1]
-				break
-			}
-		}
-	}
-
-	if configFile == "" {
-		return fmt.Errorf("config file path required\nUsage: devdashboard dependency-report <config-file>")
-	}
-
-	slog.Info("Loading configuration", "file", configFile)
-
-	// Load configuration
 	cfg, err := config.LoadFromFile(configFile)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Get all repositories from config
 	repos := cfg.GetAllRepos()
 	if len(repos) == 0 {
-		return fmt.Errorf("no repositories configured")
+		return errors.New("no repositories configured in the provided file")
 	}
 
-	slog.Info("Configuration loaded",
-		"providers", len(cfg.Providers),
-		"repositories", len(repos))
-
-	fmt.Printf("Generating dependency report for %d repositories...\n\n", len(repos))
-
-	// Create context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), depFlags.timeout)
 	defer cancel()
 
-	// Generate report
 	generator := report.NewGenerator()
 	rpt, err := generator.Generate(ctx, repos)
 	if err != nil {
 		return fmt.Errorf("failed to generate report: %w", err)
 	}
 
-	// Display report
-	printDependencyReport(rpt)
-
-	// Show errors if any
-	if rpt.HasErrors() {
-		fmt.Println("\nErrors encountered:")
-		fmt.Println(strings.Repeat("=", 80))
-		for repo, err := range rpt.GetErrors() {
-			fmt.Printf("  %s: %v\n", repo, err)
+	var outWriter ioWriteCloser = stdOutWriteCloser{w: os.Stdout}
+	if depFlags.outputFile != "" {
+		if err := os.MkdirAll(filepath.Dir(depFlags.outputFile), 0o755); err != nil {
+			return fmt.Errorf("failed to create output directory: %w", err)
 		}
+		f, err := os.Create(depFlags.outputFile)
+		if err != nil {
+			return fmt.Errorf("failed to create output file: %w", err)
+		}
+		outWriter = f
+	}
+	defer func() {
+		if cerr := outWriter.Close(); cerr != nil {
+			slog.Debug("Failed to close output writer", "error", cerr)
+		}
+	}()
+
+	switch strings.ToLower(depFlags.outputFormat) {
+	case "console":
+		if err := renderConsole(rpt, outWriter); err != nil {
+			return fmt.Errorf("failed to render console output: %w", err)
+		}
+	case "json":
+		if err := renderJSON(rpt, outWriter); err != nil {
+			return fmt.Errorf("failed to render JSON output: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported format: %s", depFlags.outputFormat)
+	}
+
+	duration := time.Since(start)
+	slog.Info("Dependency report complete",
+		"repositories", len(rpt.Repositories),
+		"packages", len(rpt.Packages),
+		"duration", duration.String())
+
+	if depFlags.failOnRepoError && rpt.HasErrors() {
+		return errors.New("one or more repositories failed (fail-on-error enabled)")
 	}
 
 	return nil
 }
 
-func printDependencyReport(rpt *report.Report) {
-	fmt.Println("Dependency Version Report")
-	fmt.Println(strings.Repeat("=", 80))
-	fmt.Println()
-
-	// Print header with repository names
-	fmt.Printf("%-30s", "Package")
-	for _, repo := range rpt.Repositories {
-		fmt.Printf(" | %-20s", truncate(repo.Repository, 20))
-	}
-	fmt.Println()
-	fmt.Println(strings.Repeat("-", 80))
-
-	// Print each package with versions across repositories
-	for _, pkg := range rpt.Packages {
-		fmt.Printf("%-30s", truncate(pkg, 30))
-
-		for _, repo := range rpt.Repositories {
-			version := repo.Dependencies[pkg]
-			if version == "" {
-				if repo.Error != nil {
-					fmt.Printf(" | %-20s", "ERROR")
-				} else {
-					fmt.Printf(" | %-20s", "N/A")
-				}
-			} else {
-				fmt.Printf(" | %-20s", truncate(version, 20))
-			}
-		}
-		fmt.Println()
+// renderConsole renders the report using the console formatter.
+func renderConsole(rpt *report.Report, w ioWriter) error {
+	if _, err := fmt.Fprintf(w, "Dependency Version Report (format=console)\n\n"); err != nil {
+		return fmt.Errorf("failed to write console header: %w", err)
 	}
 
-	fmt.Println()
-	fmt.Println("Summary:")
+	formatter := consolefmt.NewConsoleFormatter()
+	formatter.EnableColors = !depFlags.noColor
+	if depFlags.packageColWidth > 0 {
+		formatter.MaxPackageColWidth = depFlags.packageColWidth
+	}
+	if depFlags.repoColWidth > 0 {
+		formatter.MaxRepoColWidth = depFlags.repoColWidth
+	}
+	return formatter.Render(rpt, w)
+}
+
+// jsonOutput is the structured JSON shape we emit (allows adding summary without
+// changing core report.Report struct).
+type jsonOutput struct {
+	Version      string                    `json:"cliVersion"`
+	GeneratedAt  time.Time                 `json:"generatedAt"`
+	Repositories []report.RepositoryReport `json:"repositories"`
+	Packages     []string                  `json:"packages"`
+	Summary      jsonSummary               `json:"summary"`
+	Errors       map[string]string         `json:"errors,omitempty"`
+}
+
+type jsonSummary struct {
+	RepositoryCount int `json:"repositoryCount"`
+	PackageCount    int `json:"packageCount"`
+	SuccessCount    int `json:"successCount"`
+	ErrorCount      int `json:"errorCount"`
+}
+
+// renderJSON marshals the report to JSON with additional metadata.
+func renderJSON(rpt *report.Report, w ioWriter) error {
 	successCount := 0
-	for _, repo := range rpt.Repositories {
-		if repo.Error == nil {
+	for _, rr := range rpt.Repositories {
+		if rr.Error == nil {
 			successCount++
 		}
 	}
-	fmt.Printf("  Repositories analyzed: %d/%d successful\n", successCount, len(rpt.Repositories))
-	fmt.Printf("  Packages tracked: %d\n", len(rpt.Packages))
+	errCount := len(rpt.Repositories) - successCount
+
+	var errMap map[string]string
+	if depFlags.jsonIncludeErrors && rpt.HasErrors() {
+		errMap = make(map[string]string)
+		for repoID, err := range rpt.GetErrors() {
+			errMap[repoID] = err.Error()
+		}
+	}
+
+	payload := jsonOutput{
+		Version:      version,
+		GeneratedAt:  time.Now().UTC(),
+		Repositories: rpt.Repositories,
+		Packages:     rpt.Packages,
+		Summary: jsonSummary{
+			RepositoryCount: len(rpt.Repositories),
+			PackageCount:    len(rpt.Packages),
+			SuccessCount:    successCount,
+			ErrorCount:      errCount,
+		},
+		Errors: errMap,
+	}
+
+	var data []byte
+	var err error
+	if depFlags.jsonIndent {
+		data, err = json.MarshalIndent(payload, "", "  ")
+	} else {
+		data, err = json.Marshal(payload)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+	_, _ = w.Write(data)
+	_, _ = w.Write([]byte("\n"))
+	return nil
 }
 
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
+/* ---------- Minimal ioWriter / ioWriteCloser helpers (avoid extra imports) ---------- */
+
+type ioWriter interface {
+	Write(p []byte) (n int, err error)
+}
+
+type ioWriteCloser interface {
+	ioWriter
+	Close() error
+}
+
+type stdOutWriteCloser struct {
+	w ioWriter
+}
+
+func (s stdOutWriteCloser) Write(p []byte) (int, error) {
+	return s.w.Write(p)
+}
+
+func (s stdOutWriteCloser) Close() error {
+	// stdout should not be closed
+	return nil
 }

@@ -6,6 +6,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/google/go-github/v57/github"
 	"golang.org/x/oauth2"
@@ -68,7 +69,7 @@ func (g *GitHubClient) ListFiles(ctx context.Context, owner, repo, ref, path str
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
 			// Log the error but don't override the primary error
-			fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+			slog.Warn("Failed to close response body", "error", closeErr)
 		}
 	}()
 
@@ -100,7 +101,7 @@ func (g *GitHubClient) GetRepositoryInfo(ctx context.Context, owner, repo string
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
-			fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+			slog.Warn("Failed to close response body", "error", closeErr)
 		}
 	}()
 
@@ -137,7 +138,7 @@ func (g *GitHubClient) ListFilesRecursive(ctx context.Context, owner, repo, ref 
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
-			fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+			slog.Warn("Failed to close response body", "error", closeErr)
 		}
 	}()
 
@@ -190,7 +191,7 @@ func (g *GitHubClient) GetFileContent(ctx context.Context, owner, repo, ref, pat
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
-			fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+			slog.Warn("Failed to close response body", "error", closeErr)
 		}
 	}()
 

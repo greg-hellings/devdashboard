@@ -10,7 +10,7 @@ A comprehensive development dashboard system for managing and analyzing reposito
 
 - **Multi-Provider Repository Access** - Connect to GitHub and GitLab (public, private, self-hosted)
 - **Dependency Analysis** - Analyze Python Poetry projects (more analyzers coming)
-- **CLI Tool** - Complete command-line interface for all operations
+- **CLI Tool** - Focused `dependency-report` command for cross-repository dependency version comparison
 - **Extensible Architecture** - Easy to add new providers and analyzers
 - **Library & CLI** - Use as a Go library or standalone tool
 
@@ -21,38 +21,28 @@ A comprehensive development dashboard system for managing and analyzing reposito
 cd devdashboard
 go build -o devdashboard ./cmd/devdashboard
 
-# Get repository info
-export REPO_PROVIDER=github
-export REPO_OWNER=golang
-export REPO_NAME=go
-./devdashboard repo-info
-
-# Analyze dependencies
-export ANALYZER_TYPE=poetry
-export REPO_OWNER=python-poetry
-export REPO_NAME=poetry
-./devdashboard analyze-dependencies
+# Generate dependency report (config-driven)
+# Create a config file (repos.yaml) defining repositories, analyzers, and packages
+./devdashboard dependency-report repos.yaml
 ```
 
 ## Commands
 
 ```bash
-devdashboard repo-info              # Get repository information
-devdashboard list-files             # List all files
-devdashboard find-dependencies      # Find dependency files
-devdashboard analyze-dependencies   # Analyze dependencies
-devdashboard help                   # Show all commands
+devdashboard dependency-report <config-file>   # Generate dependency version report
+devdashboard help                              # Show help
 ```
 
-## Environment Variables
+## Configuration
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `REPO_PROVIDER` | Repository provider | `github`, `gitlab` |
-| `REPO_OWNER` | Repository owner | `golang` |
-| `REPO_NAME` | Repository name | `go` |
-| `REPO_TOKEN` | Auth token (optional) | `ghp_...` |
-| `ANALYZER_TYPE` | Dependency analyzer | `poetry` |
+The CLI now relies solely on a configuration file passed to the `dependency-report` command.
+See the docs for the expected YAML structure (providers, repositories, analyzer type, package list).
+
+
+
+
+
+
 
 ## Documentation
 
@@ -124,8 +114,8 @@ go install github.com/greg-hellings/devdashboard/cmd/devdashboard@latest
 
 ## Examples
 
-See [examples/](examples/) directory for complete working examples:
-- `basic_usage.go` - Repository operations
+See [examples/](examples/) directory for library-oriented examples:
+- `basic_usage.go` - Repository client usage (library)
 - `dependency_analysis.go` - Dependency analysis
 
 ## Development
