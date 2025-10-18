@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -77,7 +78,7 @@ func (g *GitLabClient) ListFiles(ctx context.Context, owner, repo, ref, path str
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
-			fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+			slog.Warn("Failed to close response body", "error", closeErr)
 		}
 	}()
 
@@ -124,7 +125,7 @@ func (g *GitLabClient) GetRepositoryInfo(ctx context.Context, owner, repo string
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
-			fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+			slog.Warn("Failed to close response body", "error", closeErr)
 		}
 	}()
 
@@ -177,7 +178,7 @@ func (g *GitLabClient) ListFilesRecursive(ctx context.Context, owner, repo, ref 
 		}
 		defer func() {
 			if closeErr := resp.Body.Close(); closeErr != nil {
-				fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+				slog.Warn("Failed to close response body", "error", closeErr)
 			}
 		}()
 
@@ -242,7 +243,7 @@ func (g *GitLabClient) GetFileContent(ctx context.Context, owner, repo, ref, pat
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
-			fmt.Printf("warning: failed to close response body: %v\n", closeErr)
+			slog.Warn("Failed to close response body", "error", closeErr)
 		}
 	}()
 

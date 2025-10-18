@@ -177,7 +177,7 @@ func (u *UvLockAnalyzer) parseUvLock(content string) ([]Dependency, error) {
 	var lockFile uvLockFile
 
 	if _, err := toml.Decode(content, &lockFile); err != nil {
-		fmt.Println(err)
+		slog.Debug("Failed to decode uv.lock content", "error", err)
 		return nil, fmt.Errorf("failed to parse uv.lock: %w", err)
 	}
 
