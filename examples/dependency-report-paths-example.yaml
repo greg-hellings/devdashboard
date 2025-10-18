@@ -1,0 +1,104 @@
+# Dependency Report Configuration - Paths Example
+#
+# This example demonstrates the difference between auto-search and explicit paths.
+
+providers:
+  github:
+    default:
+      owner: "myorg"
+      token: "${GITHUB_TOKEN}"
+      analyzer: "poetry"
+      packages:
+        - "requests"
+        - "pytest"
+        - "django"
+
+    repositories:
+      # Example 1: Auto-search (no paths specified)
+      # When paths is empty or omitted, the tool automatically searches
+      # the entire repository for dependency files matching the analyzer type.
+      # This will find all poetry.lock files in the repository.
+      - repository: "simple-service"
+        # No 'paths' field - will auto-search entire repo
+
+      # Example 2: Explicit single file path
+      # When a specific path is provided, only that exact file is analyzed.
+      # No searching is performed - the tool goes directly to this file.
+      - repository: "monorepo-service"
+        paths:
+          - "backend/poetry.lock"
+
+      # Example 3: Multiple explicit paths in a monorepo
+      # For monorepos with multiple lock files, specify each exact path.
+      # All specified files will be analyzed.
+      - repository: "large-monorepo"
+        paths:
+          - "services/api/poetry.lock"
+          - "services/worker/poetry.lock"
+          - "services/scheduler/poetry.lock"
+          - "packages/shared/poetry.lock"
+
+      # Example 4: Different analyzer with explicit path
+      # You can specify different analyzers and their corresponding file paths.
+      - repository: "pipenv-project"
+        analyzer: "pipfile"
+        paths:
+          - "Pipfile.lock"
+
+      # Example 5: Override packages with explicit path
+      # Track different packages in this specific repository.
+      - repository: "frontend-service"
+        analyzer: "uvlock"
+        paths:
+          - "frontend/uv.lock"
+        packages:
+          - "fastapi"
+          - "pydantic"
+          - "sqlalchemy"
+
+  gitlab:
+    default:
+      owner: "internal"
+      token: "${GITLAB_TOKEN}"
+      analyzer: "pipfile"
+      packages:
+        - "flask"
+        - "celery"
+
+    repositories:
+      # Example 6: Auto-search on GitLab
+      # Same behavior as GitHub - auto-searches when no paths specified.
+      - repository: "admin-panel"
+
+      # Example 7: Explicit path on GitLab
+      # Direct file path - no searching performed.
+      - repository: "data-pipeline"
+        paths:
+          - "pipeline/Pipfile.lock"
+
+# Key Takeaways:
+# ===============
+#
+# 1. When 'paths' is OMITTED or EMPTY:
+#    - Tool automatically searches entire repository
+#    - Finds all files matching the analyzer type
+#    - Good for simple repos or when file location is unknown
+#
+# 2. When 'paths' is SPECIFIED:
+#    - Tool uses ONLY those exact file paths
+#    - No searching is performed
+#    - Files are analyzed directly
+#    - More efficient for monorepos or known locations
+#
+# 3. Path Format:
+#    - Must be exact file path: "services/api/poetry.lock"
+#    - NOT a directory: "services/api" (incorrect)
+#    - Relative to repository root
+#
+# 4. Performance:
+#    - Explicit paths are faster (no search needed)
+#    - Auto-search is convenient but may be slower on large repos
+#
+# 5. Error Handling:
+#    - If explicit path doesn't exist, analysis fails for that repo
+#    - Auto-search returns "no dependency files found" if nothing matches

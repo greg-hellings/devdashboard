@@ -87,11 +87,13 @@ default:
   repository: "default-repo"        # Default repository name (rarely used)
   ref: "main"                       # Git reference (branch/tag/commit)
   analyzer: "poetry"                # Dependency analyzer type
-  paths: []                         # Paths to search for lock files
+  paths: []                         # Explicit file paths (empty = auto-search)
   packages:                         # Packages to track
     - "package1"
     - "package2"
 ```
+
+**Important:** The `paths` field specifies exact file paths to analyze, not directories to search. When `paths` is empty or omitted, the tool automatically searches the entire repository for dependency files. When specified, only those exact files are analyzed.
 
 ### Repository Configuration
 
@@ -135,7 +137,7 @@ repositories:
 |-------|-------------|---------|---------|
 | `token` | Authentication token | `""` | `"ghp_xxxx"` |
 | `ref` | Git reference | `""` (default branch) | `"main"`, `"v1.0"`, `"abc123"` |
-| `paths` | Paths to search | `[]` (entire repo) | `["src", "services"]` |
+| `paths` | Explicit paths to dependency files | `[]` (auto-search) | `["src/poetry.lock", "backend/uv.lock"]` |
 | `packages` | Packages to track | `[]` | `["requests", "django"]` |
 
 ## Analyzer Types
@@ -223,6 +225,8 @@ providers:
 
 ### Monorepo with Multiple Lock Files
 
+When specifying paths, provide the exact path to each lock file:
+
 ```yaml
 providers:
   github:
@@ -232,11 +236,13 @@ providers:
     repositories:
       - repository: "monorepo"
         paths:
-          - "services/api"
-          - "services/worker"
-          - "packages/common"
+          - "services/api/poetry.lock"
+          - "services/worker/poetry.lock"
+          - "packages/common/poetry.lock"
         packages: ["requests", "pytest"]
 ```
+
+Note: When `paths` is specified, these exact file paths are used directly. When `paths` is empty or omitted, the tool automatically searches the entire repository for dependency files.
 
 ### Using Environment Variables
 
@@ -420,11 +426,15 @@ providers:
 
 **Solution:**
 1. Verify the repository has the correct lock file (poetry.lock, Pipfile.lock, or uv.lock)
-2. Use `paths` to specify where lock files are located:
+2. Use `paths` to specify the exact file paths:
    ```yaml
    - repository: "monorepo"
-     paths: ["backend", "services"]
+     paths: 
+       - "backend/poetry.lock"
+       - "services/api/poetry.lock"
    ```
+
+**Note:** The `paths` field should contain exact file paths, not directory paths. When `paths` is specified, those files are analyzed directly without searching. When `paths` is omitted, the tool automatically searches the repository.
 
 ### Authentication required
 

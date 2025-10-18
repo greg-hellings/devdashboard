@@ -141,22 +141,46 @@ func (g *Generator) analyzeRepository(ctx context.Context, repo config.RepoWithP
 	}
 
 	// Find dependency files
-	candidates, err := analyzer.CandidateFiles(ctx, repo.Config.Owner, repo.Config.Repository, repo.Config.Ref, depConfig)
-	if err != nil {
-		report.Error = fmt.Errorf("failed to find dependency files: %w", err)
-		slog.Debug("Failed to find dependency files",
+	var candidates []dependencies.DependencyFile
+
+	if len(repo.Config.Paths) > 0 {
+		// User specified explicit paths, use them directly
+		slog.Debug("Using user-specified paths",
 			"owner", repo.Config.Owner,
 			"repo", repo.Config.Repository,
-			"error", err)
-		return report
-	}
+			"paths", repo.Config.Paths)
 
-	if len(candidates) == 0 {
-		report.Error = fmt.Errorf("no dependency files found")
-		slog.Debug("No dependency files found",
+		for _, path := range repo.Config.Paths {
+			candidates = append(candidates, dependencies.DependencyFile{
+				Path:     path,
+				Type:     repo.Config.Analyzer,
+				Analyzer: repo.Config.Analyzer,
+			})
+		}
+	} else {
+		// No paths specified, search for candidate files
+		slog.Debug("No paths specified, searching for candidate files",
 			"owner", repo.Config.Owner,
 			"repo", repo.Config.Repository)
-		return report
+
+		var err error
+		candidates, err = analyzer.CandidateFiles(ctx, repo.Config.Owner, repo.Config.Repository, repo.Config.Ref, depConfig)
+		if err != nil {
+			report.Error = fmt.Errorf("failed to find dependency files: %w", err)
+			slog.Debug("Failed to find dependency files",
+				"owner", repo.Config.Owner,
+				"repo", repo.Config.Repository,
+				"error", err)
+			return report
+		}
+
+		if len(candidates) == 0 {
+			report.Error = fmt.Errorf("no dependency files found")
+			slog.Debug("No dependency files found",
+				"owner", repo.Config.Owner,
+				"repo", repo.Config.Repository)
+			return report
+		}
 	}
 
 	slog.Debug("Found dependency files",

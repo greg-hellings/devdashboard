@@ -147,7 +147,7 @@ type uvSource struct {
 	Tag      string `toml:"tag"`
 	Branch   string `toml:"branch"`
 	Path     string `toml:"path"`
-	Editable bool   `toml:"editable"`
+	Editable string `toml:"editable"`
 }
 
 // uvDependency represents a dependency specification

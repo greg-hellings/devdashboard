@@ -26,13 +26,21 @@ providers:
 
     repositories:
       # Python poetry library
+      # This repo has MANY poetry.lock files, many of them
+      # as part of the test suite and they intentionally do
+      # not parse. Our library should log about such files, but
+      # ultimately not choke out on them
       - repository: "poetry"
 
       # Another test repo
+      # This one we test overwriting almost all of the values
+      # in order to show that it is working properly
       - repository: "uv"
         owner: "astral-sh"
         ref: "main"
         analyzer: uvlock
+        # Like above, there are multiple files to parse, but
+        # we narrow in on one of the biggest ones in the repo
         paths:
           - scripts/benchmark/uv.lock
         packages:
