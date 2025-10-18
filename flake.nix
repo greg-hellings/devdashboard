@@ -30,7 +30,7 @@
 
           src = ./.;
 
-          vendorHash = "sha256-nDRZ4tafrMUFHJK9r4hmlvrC8z4aAg6+wIyY7ZcvQvU=";
+          vendorHash = "sha256-zcz1OFTfPpkkuRK8frv4XOdBAE/mGUEEzmfoLc6ctr8=";
 
           subPackages = [ "cmd/devdashboard" ];
 

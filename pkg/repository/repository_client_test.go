@@ -22,11 +22,11 @@ type mockGitHubRepos struct {
 	fileContents map[string]*github.RepositoryContent
 }
 
-func (m *mockGitHubRepos) Get(ctx context.Context, owner, repo string) (*github.Repository, *github.Response, error) {
+func (m *mockGitHubRepos) Get(_ context.Context, _, _ string) (*github.Repository, *github.Response, error) {
 	return m.repo, &github.Response{Response: &http.Response{Body: io.NopCloser(strings.NewReader(""))}}, nil
 }
 
-func (m *mockGitHubRepos) GetContents(ctx context.Context, owner, repo, path string, opts *github.RepositoryContentGetOptions) (*github.RepositoryContent, []*github.RepositoryContent, *github.Response, error) {
+func (m *mockGitHubRepos) GetContents(_ context.Context, _, _, path string, _ *github.RepositoryContentGetOptions) (*github.RepositoryContent, []*github.RepositoryContent, *github.Response, error) {
 	if fc, ok := m.fileContents[path]; ok {
 		return fc, nil, &github.Response{Response: &http.Response{Body: io.NopCloser(strings.NewReader(""))}}, nil
 	}
@@ -41,7 +41,7 @@ type mockGitHubGit struct {
 	tree *github.Tree
 }
 
-func (m *mockGitHubGit) GetTree(ctx context.Context, owner, repo, sha string, recursive bool) (*github.Tree, *github.Response, error) {
+func (m *mockGitHubGit) GetTree(_ context.Context, _ string, _ string, _ string, _ bool) (*github.Tree, *github.Response, error) {
 	return m.tree, &github.Response{Response: &http.Response{Body: io.NopCloser(strings.NewReader(""))}}, nil
 }
 
@@ -53,7 +53,7 @@ type mockGitLabProjects struct {
 	project *gitlab.Project
 }
 
-func (m *mockGitLabProjects) GetProject(projectID string, opts *gitlab.GetProjectOptions, options ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
+func (m *mockGitLabProjects) GetProject(_ string, _ *gitlab.GetProjectOptions, _ ...gitlab.RequestOptionFunc) (*gitlab.Project, *gitlab.Response, error) {
 	return m.project, &gitlab.Response{Response: &http.Response{Body: io.NopCloser(strings.NewReader(""))}}, nil
 }
 
@@ -62,7 +62,7 @@ type mockGitLabRepos struct {
 	nextPage map[int]int
 }
 
-func (m *mockGitLabRepos) ListTree(projectID string, opts *gitlab.ListTreeOptions, options ...gitlab.RequestOptionFunc) ([]*gitlab.TreeNode, *gitlab.Response, error) {
+func (m *mockGitLabRepos) ListTree(_ string, opts *gitlab.ListTreeOptions, _ ...gitlab.RequestOptionFunc) ([]*gitlab.TreeNode, *gitlab.Response, error) {
 	page := opts.Page
 	nodes := m.pages[page]
 	resp := &gitlab.Response{
@@ -76,7 +76,7 @@ type mockGitLabFiles struct {
 	files map[string]*gitlab.File
 }
 
-func (m *mockGitLabFiles) GetFile(projectID string, filePath string, opts *gitlab.GetFileOptions, options ...gitlab.RequestOptionFunc) (*gitlab.File, *gitlab.Response, error) {
+func (m *mockGitLabFiles) GetFile(_ string, filePath string, _ *gitlab.GetFileOptions, _ ...gitlab.RequestOptionFunc) (*gitlab.File, *gitlab.Response, error) {
 	f := m.files[filePath]
 	return f, &gitlab.Response{Response: &http.Response{Body: io.NopCloser(strings.NewReader(""))}}, nil
 }
@@ -189,10 +189,11 @@ func TestGitHubListFiles_DirectoryListing(t *testing.T) {
 func TestGitHubGetFileContent_Base64(t *testing.T) {
 	encoded := base64.StdEncoding.EncodeToString([]byte("hello world"))
 	fileContent := &github.RepositoryContent{
-		Type:    github.String("file"),
-		Path:    github.String("file.txt"),
-		Name:    github.String("file.txt"),
-		Content: github.String(encoded),
+		Type:     github.String("file"),
+		Path:     github.String("file.txt"),
+		Name:     github.String("file.txt"),
+		Content:  github.String(encoded),
+		Encoding: github.String("base64"),
 	}
 
 	client := &GitHubClient{
