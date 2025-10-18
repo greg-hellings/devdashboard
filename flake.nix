@@ -203,46 +203,35 @@
         };
 
         checks = {
-          # Build check
-          build = devdashboard;
+          # Build once
+          build = devdashboard.overrideAttrs { doCheck = true; };
 
-          # Test check
-          test = pkgs.buildGoModule {
-            pname = "devdashboard-tests";
-            inherit version vendorHash;
-            src = ./.;
-            subPackages = [ "cmd/devdashboard" ];
-            doCheck = true;
-            checkPhase = ''
-              go test -v ./pkg/... > test.log
-            '';
-            installPhase = ''
-              mkdir -p $out
-              cp test.log $out
-            '';
-          };
-
-          # Go vet check
+          # Vet using vendored modules
           vet =
             pkgs.runCommand "devdashboard-vet"
               {
-                buildInputs = [ pkgs.go ];
+                buildInputs = [
+                  pkgs.go
+                  devdashboard
+                ];
               }
               ''
-                cd ${./.}
                 export HOME=$(mktemp -d)
-                ${pkgs.go}/bin/go vet ./... 2>&1 | tee $out
+                cp -r ${./.} src
+                cd src
+                cp -r ${devdashboard}/vendor ./ || true
+                export GOFLAGS="-mod=mod"
+                go vet ./... 2>&1 | tee $out
               '';
 
-          # Formatting check
+          # Formatting check (doesn't need vendored deps)
           fmt =
             pkgs.runCommand "devdashboard-fmt"
               {
                 buildInputs = [ pkgs.go ];
               }
               ''
-                cd ${./.}
-                unformatted=$(${pkgs.go}/bin/gofmt -l .)
+                unformatted=$(${pkgs.go}/bin/gofmt -l ${./.})
                 if [ -n "$unformatted" ]; then
                   echo "The following files are not formatted:" > $out
                   echo "$unformatted" >> $out
@@ -250,52 +239,6 @@
                 fi
                 echo "All files are properly formatted" > $out
               '';
-
-          # Dependencies check
-          config-tests = pkgs.buildGoModule {
-            pname = "devdashboard-config-tests";
-            inherit version vendorHash;
-            src = ./.;
-            subPackages = [ "cmd/devdashboard" ];
-            doCheck = true;
-            checkPhase = ''
-              go test -v ./pkg/config/... > test.log
-            '';
-            installPhase = ''
-              mkdir -p $out
-              cp test.log $out
-            '';
-          };
-
-          dependencies-tests = pkgs.buildGoModule {
-            pname = "devdashboard-dependencies-tests";
-            inherit version vendorHash;
-            src = ./.;
-            subPackages = [ "cmd/devdashboard" ];
-            doCheck = true;
-            checkPhase = ''
-              go test -v ./pkg/dependencies/... > test.log
-            '';
-            installPhase = ''
-              mkdir -p $out
-              cp test.log $out
-            '';
-          };
-
-          repository-tests = pkgs.buildGoModule {
-            pname = "devdashboard-repository-tests";
-            inherit version vendorHash;
-            src = ./.;
-            subPackages = [ "cmd/devdashboard" ];
-            doCheck = true;
-            checkPhase = ''
-              go test -v ./pkg/repository/... > test.log
-            '';
-            installPhase = ''
-              mkdir -p $out
-              cp test.log $out
-            '';
-          };
         };
 
         formatter = pkgs.nixpkgs-fmt;
