@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Updated minimum Go version requirement to 1.24
+- CI/CD pipelines now test with Go 1.24 and 1.25
+
 ### Planned
 - Web dashboard interface
 - GUI desktop application
@@ -101,7 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ensures file content is returned as plain text strings
 
 ### Technical Details
-- Go 1.21 compatibility
+- Go 1.24+ compatibility
 - Uses official provider libraries for better maintainability
 - Context support for cancellation and timeouts
 - Interface-driven design for extensibility

@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ["1.21", "1.22", "1.23"]
+        go-version: ["1.24", "1.25"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -67,7 +67,7 @@ jobs:
         run: go test -v -race -coverprofile=coverage.out ./...
 
       - name: Upload coverage to Codecov
-        if: matrix.go-version == '1.21'
+        if: matrix.go-version == '1.24'
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.out
@@ -82,7 +82,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        go-version: ["1.21"]
+        go-version: ["1.24"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -109,7 +109,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version: "1.24"
           cache: true
 
       - name: Test all examples
@@ -176,7 +176,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.21"
+          go-version: "1.24"
           cache: true
 
       - name: golangci-lint
@@ -200,7 +200,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.21"
+          go-version: "1.24"
 
       - name: Run Gosec Security Scanner
         uses: securego/gosec@master

@@ -4,7 +4,7 @@ Get up and running with DevDashboard in 5 minutes!
 
 ## Prerequisites
 
-- Go 1.21 or higher installed
+- Go 1.24 or higher installed
 - Git (for cloning repositories)
 - Optional: GitHub or GitLab personal access token (for private repositories)
 
