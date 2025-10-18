@@ -1,0 +1,139 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    name: Generate coverage report
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests with coverage
+        run: go test -v -race -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Generate coverage report
+        run: go tool cover -html=coverage.out -o coverage.html
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.out
+            coverage.html
+          retention-days: 30
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
+          echo "Total coverage: ${COVERAGE}%"
+          THRESHOLD=70
+          if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+            echo "Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+            exit 1
+          fi
+          echo "Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%"
+
+  coverage-diff:
+    name: Coverage diff
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache: true
+
+      - name: Run tests on base
+        run: go test -coverprofile=coverage-base.out ./...
+
+      - name: Get base coverage
+        id: base
+        run: |
+          BASE_COVERAGE=$(go tool cover -func=coverage-base.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
+          echo "coverage=${BASE_COVERAGE}" >> $GITHUB_OUTPUT
+          echo "Base coverage: ${BASE_COVERAGE}%"
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+
+      - name: Run tests on PR
+        run: go test -coverprofile=coverage-pr.out ./...
+
+      - name: Get PR coverage
+        id: pr
+        run: |
+          PR_COVERAGE=$(go tool cover -func=coverage-pr.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
+          echo "coverage=${PR_COVERAGE}" >> $GITHUB_OUTPUT
+          echo "PR coverage: ${PR_COVERAGE}%"
+
+      - name: Compare coverage
+        run: |
+          BASE=${{ steps.base.outputs.coverage }}
+          PR=${{ steps.pr.outputs.coverage }}
+          DIFF=$(echo "$PR - $BASE" | bc)
+
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Base Coverage | ${BASE}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| PR Coverage | ${PR}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Difference | ${DIFF}% |" >> $GITHUB_STEP_SUMMARY
+
+          if (( $(echo "$DIFF < -1" | bc -l) )); then
+            echo "⚠️ Coverage decreased by ${DIFF}%" >> $GITHUB_STEP_SUMMARY
+            echo "::warning::Coverage decreased by ${DIFF}%"
+          elif (( $(echo "$DIFF > 1" | bc -l) )); then
+            echo "✅ Coverage increased by ${DIFF}%" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ Coverage changed by ${DIFF}%" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Comment PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const base = '${{ steps.base.outputs.coverage }}';
+            const pr = '${{ steps.pr.outputs.coverage }}';
+            const diff = (parseFloat(pr) - parseFloat(base)).toFixed(2);
+
+            const emoji = diff < -1 ? '⚠️' : diff > 1 ? '✅' : 'ℹ️';
+            const message = `${emoji} **Code Coverage Report**
+
+            | Metric | Value |
+            |--------|-------|
+            | Base Coverage | ${base}% |
+            | PR Coverage | ${pr}% |
+            | Difference | ${diff}% |
+
+            ${diff < -1 ? '⚠️ Coverage decreased. Please add tests.' : diff > 1 ? '✅ Great job increasing coverage!' : 'Coverage is stable.'}`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });

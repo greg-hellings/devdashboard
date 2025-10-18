@@ -1,3 +1,7 @@
+[![CI](https://github.com/greg-hellings/devdashboard/workflows/CI/badge.svg)](https://github.com/greg-hellings/devdashboard/actions/workflows/ci.yml)
+[![Code Coverage](https://github.com/greg-hellings/devdashboard/workflows/Code%20Coverage/badge.svg)](https://github.com/greg-hellings/devdashboard/actions/workflows/coverage.yml)
+[![Nightly Build](https://github.com/greg-hellings/devdashboard/workflows/Nightly%20Build/badge.svg)](https://github.com/greg-hellings/devdashboard/actions/workflows/nightly.yml)
+
 # DevDashboard
 
 A comprehensive development dashboard system for managing and analyzing repositories across multiple platforms (GitHub, GitLab) with dependency analysis capabilities.

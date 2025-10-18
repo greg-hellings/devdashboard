@@ -1,0 +1,45 @@
+# CODEOWNERS file for DevDashboard
+# Each line is a file pattern followed by one or more owners.
+
+# Default owners for everything in the repo
+*                           @greg-hellings
+
+# Go code
+*.go                        @greg-hellings
+go.mod                      @greg-hellings
+go.sum                      @greg-hellings
+
+# Nix configuration
+flake.nix                   @greg-hellings
+flake.lock                  @greg-hellings
+.nix-helpers/               @greg-hellings
+
+# CI/CD
+.github/                    @greg-hellings
+.github/workflows/          @greg-hellings
+
+# Documentation
+/docs/                      @greg-hellings
+*.md                        @greg-hellings
+
+# Configuration
+/pkg/config/                @greg-hellings
+
+# Dependencies module
+/pkg/dependencies/          @greg-hellings
+
+# Repository module
+/pkg/repository/            @greg-hellings
+
+# Report module
+/pkg/report/                @greg-hellings
+
+# CLI
+/cmd/                       @greg-hellings
+
+# Docker
+Dockerfile                  @greg-hellings
+.dockerignore               @greg-hellings
+
+# Dependabot
+.github/dependabot.yml      @greg-hellings

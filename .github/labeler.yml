@@ -1,0 +1,83 @@
+# Configuration for https://github.com/actions/labeler
+
+# Dependencies
+"dependencies":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "go.mod"
+          - "go.sum"
+          - "flake.nix"
+          - "flake.lock"
+
+# Go code
+"go":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.go"
+          - "go.mod"
+          - "go.sum"
+
+# Nix
+"nix":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "flake.nix"
+          - "flake.lock"
+          - ".envrc"
+          - ".nix-helpers/**/*"
+
+# Documentation
+"documentation":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**/*"
+          - "**/*.md"
+          - "README.md"
+          - "CHANGELOG.md"
+
+# CI/CD
+"ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**/*"
+          - ".github/workflows/**/*"
+          - "Makefile"
+
+# Tests
+"tests":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*_test.go"
+          - "pkg/dependencies/test_helpers.go"
+
+# Configuration
+"config":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/config/**/*"
+          - "**/*config*.yaml"
+          - "**/*config*.yml"
+
+# Repository module
+"repository":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/repository/**/*"
+
+# Report module
+"report":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/report/**/*"
+
+# Examples
+"examples":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "examples/**/*"
+
+# CLI
+"cli":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "cmd/**/*"

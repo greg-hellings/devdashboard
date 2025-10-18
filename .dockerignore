@@ -1,0 +1,62 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# Nix
+flake.nix
+flake.lock
+.envrc
+.envrc.cache
+.direnv
+.nix-helpers
+result
+result-*
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Build artifacts
+bin/
+dist/
+devdashboard
+basic_usage
+
+# Test files
+*_test.go
+coverage.out
+coverage.html
+coverage.xml
+
+# Development tools
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+
+# Temporary files
+tmp/
+temp/
+*.log
+
+# Examples
+examples/
+
+# Justfile and Makefile (not needed in container)
+justfile
+Makefile
+
+# Setup scripts
+setup.sh

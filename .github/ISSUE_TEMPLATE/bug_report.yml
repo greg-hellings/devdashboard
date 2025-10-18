@@ -1,0 +1,172 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+assignees:
+  - greg-hellings
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the information below to help us diagnose and fix the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the bug
+      placeholder: What happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: What should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: What actually happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Run command '...'
+        2. With configuration '...'
+        3. See error
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: Please copy and paste any relevant log output
+      render: shell
+      placeholder: Paste logs here (use -v or -vv for verbose output)
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What version of DevDashboard are you using?
+      placeholder: "e.g., v0.1.0 or commit SHA"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation Method
+      description: How did you install DevDashboard?
+      options:
+        - Built from source (go build)
+        - Nix flake (nix build)
+        - Docker/Container
+        - Downloaded release binary
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: go-version
+    attributes:
+      label: Go Version
+      description: What version of Go are you using (if built from source)?
+      placeholder: "e.g., 1.21.0"
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What OS are you using?
+      options:
+        - Linux
+        - macOS (Intel)
+        - macOS (Apple Silicon)
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: OS Version
+      description: What version of the OS?
+      placeholder: "e.g., Ubuntu 22.04, macOS 14.0, Windows 11"
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Repository Provider
+      description: Which repository provider were you using?
+      options:
+        - GitHub (cloud)
+        - GitHub (self-hosted)
+        - GitLab (cloud)
+        - GitLab (self-hosted)
+        - Not applicable
+        - Other
+
+  - type: dropdown
+    id: analyzer
+    attributes:
+      label: Dependency Analyzer
+      description: Which dependency analyzer were you using?
+      options:
+        - poetry
+        - pipfile
+        - uvlock
+        - Not applicable
+        - Other
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration File
+      description: If using dependency-report, paste your config file (remove sensitive tokens!)
+      render: yaml
+      placeholder: |
+        providers:
+          github:
+            default:
+              owner: "myorg"
+              analyzer: "poetry"
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here
+      placeholder: Any additional information that might be helpful
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues to ensure this is not a duplicate
+          required: true
+        - label: I have included all relevant information above
+          required: true
+        - label: I have removed any sensitive information (tokens, private repo names, etc.)
+          required: true
