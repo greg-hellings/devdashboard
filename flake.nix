@@ -24,13 +24,13 @@
 
         version = "0.1.0";
 
+        vendorHash = "sha256-zcz1OFTfPpkkuRK8frv4XOdBAE/mGUEEzmfoLc6ctr8=";
+
         devdashboard = pkgs.buildGoModule {
           pname = "devdashboard";
-          inherit version;
+          inherit version vendorHash;
 
           src = ./.;
-
-          vendorHash = "sha256-zcz1OFTfPpkkuRK8frv4XOdBAE/mGUEEzmfoLc6ctr8=";
 
           subPackages = [ "cmd/devdashboard" ];
 
@@ -207,18 +207,20 @@
           build = devdashboard;
 
           # Test check
-          test =
-            pkgs.runCommand "devdashboard-tests"
-              {
-                buildInputs = [ pkgs.go ];
-              }
-              ''
-                cd ${./.}
-                export HOME=$(mktemp -d)
-                export GOCACHE=$HOME/.cache/go-build
-                export GOMODCACHE=$HOME/go/pkg/mod
-                ${pkgs.go}/bin/go test -v ./pkg/... > $out
-              '';
+          test = pkgs.buildGoModule {
+            pname = "devdashboard-tests";
+            inherit version vendorHash;
+            src = ./.;
+            subPackages = [ "cmd/devdashboard" ];
+            doCheck = true;
+            checkPhase = ''
+              go test -v ./pkg/... > test.log
+            '';
+            installPhase = ''
+              mkdir -p $out
+              cp test.log $out
+            '';
+          };
 
           # Go vet check
           vet =
@@ -250,44 +252,50 @@
               '';
 
           # Dependencies check
-          config-tests =
-            pkgs.runCommand "devdashboard-config-tests"
-              {
-                buildInputs = [ pkgs.go ];
-              }
-              ''
-                cd ${./.}
-                export HOME=$(mktemp -d)
-                export GOCACHE=$HOME/.cache/go-build
-                export GOMODCACHE=$HOME/go/pkg/mod
-                ${pkgs.go}/bin/go test -v ./pkg/config/... > $out
-              '';
+          config-tests = pkgs.buildGoModule {
+            pname = "devdashboard-config-tests";
+            inherit version vendorHash;
+            src = ./.;
+            subPackages = [ "cmd/devdashboard" ];
+            doCheck = true;
+            checkPhase = ''
+              go test -v ./pkg/config/... > test.log
+            '';
+            installPhase = ''
+              mkdir -p $out
+              cp test.log $out
+            '';
+          };
 
-          dependencies-tests =
-            pkgs.runCommand "devdashboard-dependencies-tests"
-              {
-                buildInputs = [ pkgs.go ];
-              }
-              ''
-                cd ${./.}
-                export HOME=$(mktemp -d)
-                export GOCACHE=$HOME/.cache/go-build
-                export GOMODCACHE=$HOME/go/pkg/mod
-                ${pkgs.go}/bin/go test -v ./pkg/dependencies/... > $out
-              '';
+          dependencies-tests = pkgs.buildGoModule {
+            pname = "devdashboard-dependencies-tests";
+            inherit version vendorHash;
+            src = ./.;
+            subPackages = [ "cmd/devdashboard" ];
+            doCheck = true;
+            checkPhase = ''
+              go test -v ./pkg/dependencies/... > test.log
+            '';
+            installPhase = ''
+              mkdir -p $out
+              cp test.log $out
+            '';
+          };
 
-          repository-tests =
-            pkgs.runCommand "devdashboard-repository-tests"
-              {
-                buildInputs = [ pkgs.go ];
-              }
-              ''
-                cd ${./.}
-                export HOME=$(mktemp -d)
-                export GOCACHE=$HOME/.cache/go-build
-                export GOMODCACHE=$HOME/go/pkg/mod
-                ${pkgs.go}/bin/go test -v ./pkg/repository/... > $out
-              '';
+          repository-tests = pkgs.buildGoModule {
+            pname = "devdashboard-repository-tests";
+            inherit version vendorHash;
+            src = ./.;
+            subPackages = [ "cmd/devdashboard" ];
+            doCheck = true;
+            checkPhase = ''
+              go test -v ./pkg/repository/... > test.log
+            '';
+            installPhase = ''
+              mkdir -p $out
+              cp test.log $out
+            '';
+          };
         };
 
         formatter = pkgs.nixpkgs-fmt;
