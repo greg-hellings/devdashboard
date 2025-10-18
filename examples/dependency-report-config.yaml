@@ -1,0 +1,104 @@
+# Example configuration file for multi-repository dependency reporting
+# This file demonstrates how to configure DevDashboard to analyze dependencies
+# across multiple repositories and generate a version comparison report.
+
+providers:
+  # GitHub configuration
+  github:
+    # Default values that apply to all repositories unless overridden
+    default:
+      # Authentication token (can also use environment variable)
+      token: "${GITHUB_TOKEN}"
+
+      # Default owner/organization
+      owner: "python-poetry"
+
+      # Default git reference (branch, tag, or commit)
+      ref: "main"
+
+      # Default paths to search for lock files (empty means search entire repo)
+      paths: []
+
+      # Default analyzer type (poetry, pipfile, uvlock)
+      analyzer: "poetry"
+
+      # Packages to track across repositories
+      packages:
+        - "requests"
+        - "urllib3"
+        - "pytest"
+        - "black"
+        - "mypy"
+
+    # List of repositories to analyze
+    repositories:
+      # First repository - inherits all defaults
+      - repository: "poetry"
+
+      # Second repository - overrides some defaults
+      - repository: "poetry-plugin-export"
+        owner: "python-poetry"
+        ref: "main"
+
+      # Third repository - custom configuration
+      - repository: "another-repo"
+        owner: "different-org"
+        ref: "develop"
+        analyzer: "pipfile"
+        paths:
+          - "src"
+          - "lib"
+        packages:
+          - "django"
+          - "celery"
+          - "redis"
+
+  # GitLab configuration
+  gitlab:
+    default:
+      token: "${GITLAB_TOKEN}"
+      owner: "myorg"
+      ref: "main"
+      analyzer: "poetry"
+      packages:
+        - "requests"
+        - "flask"
+        - "sqlalchemy"
+
+    repositories:
+      - repository: "api-service"
+
+      - repository: "worker-service"
+        ref: "staging"
+
+      - repository: "frontend-service"
+        analyzer: "uvlock"
+        packages:
+          - "fastapi"
+          - "pydantic"
+          - "uvicorn"
+
+# Additional examples:
+
+# Using environment variables for sensitive data:
+# token: "${GITHUB_TOKEN}"
+# owner: "${REPO_OWNER}"
+
+# Analyzing specific paths only:
+# paths:
+#   - "backend/services"
+#   - "shared/common"
+
+# Tracking different packages per repository:
+# - repository: "repo1"
+#   packages: ["package1", "package2"]
+# - repository: "repo2"
+#   packages: ["package3", "package4"]
+
+# Using different analyzers:
+# - repository: "poetry-project"
+#   analyzer: "poetry"
+# - repository: "pipenv-project"
+#   analyzer: "pipfile"
+# - repository: "uv-project"
+#   analyzer: "uvlock"

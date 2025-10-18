@@ -27,10 +27,10 @@ func main() {
 	fmt.Printf("Reference: %s\n\n", ref)
 
 	// Create repository client
-	repoFactory := repository.NewFactory()
-	repoClient, err := repoFactory.CreateClient(provider, repository.Config{
+	repoFactory := repository.NewFactory(repository.Config{
 		Token: token,
 	})
+	repoClient, err := repoFactory.CreateClient(provider)
 	if err != nil {
 		log.Fatalf("Failed to create repository client: %v", err)
 	}

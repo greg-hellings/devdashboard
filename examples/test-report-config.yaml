@@ -1,0 +1,42 @@
+# Simple test configuration for dependency-report command
+# This demonstrates a minimal working configuration
+
+providers:
+  github:
+    default:
+      # GitHub personal access token (optional for public repos)
+      token: ""
+
+      # Default owner
+      owner: "python-poetry"
+
+      # Default git reference
+      ref: "main"
+
+      # Default analyzer type
+      analyzer: "poetry"
+
+      # Packages to track
+      packages:
+        - "certifi"
+        - "charset-normalizer"
+        - "idna"
+        - "requests"
+        - "urllib3"
+
+    repositories:
+      # Python poetry library
+      - repository: "poetry"
+
+      # Another test repo
+      - repository: "uv"
+        owner: "astral-sh"
+        ref: "main"
+        analyzer: uvlock
+        paths:
+          - scripts/benchmark/uv.lock
+        packages:
+          - "click"
+          - "mypy-extensions"
+          - "pathspec"
+          - "platformdirs"
