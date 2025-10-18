@@ -35,11 +35,11 @@ mkdir -p bin
 go build -o bin/devdashboard ./cmd/devdashboard
 echo "✓ CLI tool built successfully: bin/devdashboard"
 
-# Build the example
+# Example build removed (legacy commands deprecated)
 echo ""
-echo "Building example program..."
-go build -o bin/basic_usage ./examples/basic_usage.go
-echo "✓ Example program built successfully: bin/basic_usage"
+echo "Skipping example program build (only dependency-report command is supported now)..."
+echo ""
+echo ""
 
 # Run tests
 echo ""
@@ -55,23 +55,23 @@ echo "=================================="
 echo ""
 echo "Quick Start Commands:"
 echo ""
-echo "1. Test with a public GitHub repository:"
-echo "   export REPO_PROVIDER=github"
-echo "   export REPO_OWNER=golang"
-echo "   export REPO_NAME=example"
-echo "   ./bin/devdashboard repo-info"
+echo "1. Create a config file (repos.yaml):"
+echo "   cat > repos.yaml <<'EOF'"
+echo "   providers:"
+echo "     - name: github"
+echo "       token: \"\""
+echo "   repositories:"
+echo "     - provider: github"
+echo "       owner: golang"
+echo "       repository: go"
+echo "       analyzer: poetry"
+echo "       packages:"
+echo "         - fmt"
 echo ""
-echo "2. Test with a public GitLab repository:"
-echo "   export REPO_PROVIDER=gitlab"
-echo "   export REPO_OWNER=gitlab-org"
-echo "   export REPO_NAME=gitlab-foss"
-echo "   ./bin/devdashboard repo-info"
+echo "2. Run dependency report:"
+echo "   ./bin/devdashboard dependency-report repos.yaml"
 echo ""
-echo "3. Run the example program:"
-echo "   ./bin/basic_usage"
-echo ""
-echo "4. For private repositories, set REPO_TOKEN:"
-echo "   export REPO_TOKEN=your-token-here"
+echo "3. (Optional) JSON output: ./bin/devdashboard dependency-report repos.yaml --format json --json-indent"
 echo ""
 echo "For more information, see README.md or QUICKSTART.md"
 echo ""
@@ -81,13 +81,13 @@ read -p "Would you like to run a quick test with a public repository? (y/n) " -n
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ""
-    echo "Testing with golang/example repository..."
-    export REPO_PROVIDER=github
-    export REPO_OWNER=golang
-    export REPO_NAME=example
-    ./bin/devdashboard repo-info
+    echo "Quick test skipped: legacy repo-info command removed."
+    echo "To test, create a repos.yaml and run:"
+    echo "  ./bin/devdashboard dependency-report repos.yaml"
     echo ""
-    echo "✓ Test successful!"
+    echo ""
+    echo ""
+    echo "✓ Dependency report CLI available."
 fi
 
 echo ""
