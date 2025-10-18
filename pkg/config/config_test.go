@@ -226,10 +226,10 @@ providers:
 			description: "Should handle empty paths and packages",
 			validateFn: func(t *testing.T, cfg *Config) {
 				repo := cfg.Providers["github"].Repositories[0]
-				if repo.Paths != nil && len(repo.Paths) > 0 {
+				if len(repo.Paths) > 0 {
 					t.Errorf("Expected empty paths, got %v", repo.Paths)
 				}
-				if repo.Packages != nil && len(repo.Packages) > 0 {
+				if len(repo.Packages) > 0 {
 					t.Errorf("Expected empty packages, got %v", repo.Packages)
 				}
 			},

@@ -7,57 +7,7 @@ import (
 	"testing"
 
 	"github.com/greg-hellings/devdashboard/pkg/config"
-	"github.com/greg-hellings/devdashboard/pkg/repository"
 )
-
-// mockRepoClient is a mock repository client for testing
-type mockRepoClient struct {
-	files       map[string][]repository.FileInfo
-	fileContent map[string]string
-	shouldError bool
-}
-
-func (m *mockRepoClient) ListFiles(ctx context.Context, owner, repo, ref, path string) ([]repository.FileInfo, error) {
-	if m.shouldError {
-		return nil, errors.New("mock error")
-	}
-	key := owner + "/" + repo + "/" + path
-	if files, ok := m.files[key]; ok {
-		return files, nil
-	}
-	return []repository.FileInfo{}, nil
-}
-
-func (m *mockRepoClient) ListFilesRecursive(ctx context.Context, owner, repo, ref string) ([]repository.FileInfo, error) {
-	if m.shouldError {
-		return nil, errors.New("mock error")
-	}
-	return m.files[owner+"/"+repo+"/"], nil
-}
-
-func (m *mockRepoClient) GetFileContent(ctx context.Context, owner, repo, ref, path string) (string, error) {
-	if m.shouldError {
-		return "", errors.New("mock error")
-	}
-	if content, ok := m.fileContent[path]; ok {
-		return content, nil
-	}
-	return "", errors.New("file not found")
-}
-
-func (m *mockRepoClient) GetRepositoryInfo(ctx context.Context, owner, repo string) (*repository.RepositoryInfo, error) {
-	if m.shouldError {
-		return nil, errors.New("mock error")
-	}
-	return &repository.RepositoryInfo{
-		ID:            "test-repo",
-		Name:          repo,
-		FullName:      owner + "/" + repo,
-		Description:   "Test repository",
-		DefaultBranch: "main",
-		URL:           "https://example.com/" + owner + "/" + repo,
-	}, nil
-}
 
 func TestNewGenerator(t *testing.T) {
 	gen := NewGenerator()
