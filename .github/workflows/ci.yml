@@ -7,7 +7,6 @@ on:
     branches: [main, master, develop]
   workflow_dispatch:
 
-# Added permissions required for SARIF upload (security-events: write)
 permissions:
   contents: read
   security-events: write
@@ -44,7 +43,7 @@ jobs:
         run: nix develop --command pre-commit run --all-files --show-diff-on-failure
 
   go-tests:
-    name: Go tests
+    name: Go tests (core module)
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -59,30 +58,37 @@ jobs:
           go-version: ${{ matrix.go-version }}
           cache: true
 
-      - name: Download dependencies
+      - name: Sync workspace
+        run: go work sync
+
+      - name: Download dependencies (core)
+        working-directory: core
         run: go mod download
 
-      - name: Verify dependencies
+      - name: Verify dependencies (core)
+        working-directory: core
         run: go mod verify
 
-      - name: Run go vet
+      - name: Run go vet (core)
+        working-directory: core
         run: go vet ./...
 
-      - name: Run tests
-        run: go test -v -race -coverprofile=coverage.out ./...
+      - name: Run tests (core)
+        working-directory: core
+        run: go test -v -race -coverprofile=coverage.out ./pkg/...
 
       - name: Upload coverage to Codecov
         if: matrix.go-version == '1.24'
         uses: codecov/codecov-action@v5
         with:
-          file: ./coverage.out
+          file: core/coverage.out
           flags: unittests
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   go-build:
-    name: Go build
+    name: Go CLI build (core)
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -98,14 +104,44 @@ jobs:
           go-version: ${{ matrix.go-version }}
           cache: true
 
-      - name: Build
-        run: go build -v -o devdashboard${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./cmd/devdashboard
+      - name: Sync workspace
+        run: go work sync
+
+      - name: Build CLI
+        run: go build -v -o devdashboard${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./core/cmd/devdashboard
 
       - name: Test binary
         run: ./devdashboard${{ matrix.os == 'windows-latest' && '.exe' || '' }} help
 
+  go-gui-build:
+    name: Go GUI build (desktop module)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        go-version: ["1.24"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+
+      - name: Sync workspace
+        run: go work sync
+
+      - name: Download GUI dependencies
+        working-directory: gui/desktop
+        run: go mod download
+
+      - name: Build GUI
+        run: go build -v -o devdashboard-gui${{ matrix.os == 'windows-latest' && '.exe' || '' }} ./gui/desktop/cmd/devdashboard-gui
+
   examples:
-    name: Test examples
+    name: Test examples (core/examples)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -116,6 +152,9 @@ jobs:
         with:
           go-version: "1.24"
           cache: true
+
+      - name: Sync workspace
+        run: go work sync
 
       - name: Test all examples
         run: ./scripts/test-examples.sh
@@ -172,7 +211,7 @@ jobs:
         run: nix flake check -L
 
   code-quality:
-    name: Code quality checks
+    name: Code quality checks (core)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -184,19 +223,37 @@ jobs:
           go-version: "1.24"
           cache: true
 
-      - name: golangci-lint
+      - name: Sync workspace
+        run: go work sync
+
+      - name: golangci-lint (core)
         uses: golangci/golangci-lint-action@v8
         with:
+          working-directory: core
           version: latest
-          args: --timeout=5m
+          args: --timeout=5m ./...
 
-      - name: Check go.mod tidiness
+      - name: golangci-lint (gui-desktop)
+        uses: golangci/golangci-lint-action@v8
+        with:
+          working-directory: gui/desktop
+          version: latest
+          args: --timeout=5m ./...
+
+      - name: Check go.mod tidiness (core)
+        working-directory: core
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+      - name: Check go.mod tidiness (gui/desktop)
+        working-directory: gui/desktop
         run: |
           go mod tidy
           git diff --exit-code go.mod go.sum
 
   security:
-    name: Security scanning
+    name: Security scanning (core)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -207,7 +264,11 @@ jobs:
         with:
           go-version: "1.24"
 
+      - name: Sync workspace
+        run: go work sync
+
       - name: Run Gosec Security Scanner
+        working-directory: core
         uses: securego/gosec@master
         with:
           args: "-no-fail -fmt sarif -out results.sarif ./..."
@@ -216,7 +277,7 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: results.sarif
+          sarif_file: core/results.sarif
 
   all-checks:
     name: All checks passed
@@ -225,6 +286,7 @@ jobs:
       - pre-commit
       - go-tests
       - go-build
+      - go-gui-build
       - examples
       - nix-build
       - nix-checks

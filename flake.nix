@@ -4,18 +4,13 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    pre-commit-hooks = {
-      url = "github:cachix/pre-commit-hooks.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs =
-    { self
-    , nixpkgs
-    , flake-utils
-    , pre-commit-hooks
-    ,
+    {
+      self,
+      nixpkgs,
+      flake-utils,
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
@@ -24,13 +19,13 @@
 
         version = "0.2.0";
 
-        vendorHash = "sha256-icE99gXkDYrKEmre+W+MWMFe+dfNLcjANUiVVrmBVWM=";
+        vendorHash = "sha256-Opv+u4wM4QL00GjSkrYayb2aS3eZIhTOkfBZ5niGhzo=";
 
         devdashboard = pkgs.buildGoModule {
           pname = "devdashboard";
           inherit version vendorHash;
 
-          src = ./.;
+          src = ./core;
 
           ldflags = [
             "-s"
@@ -46,84 +41,6 @@
             mainProgram = "devdashboard";
           };
         };
-
-        pre-commit-check = pre-commit-hooks.lib.${system}.run {
-          src = ./.;
-          hooks = {
-            # Go formatting
-            gofmt = {
-              enable = true;
-              name = "gofmt";
-              entry = "${pkgs.go}/bin/gofmt -w";
-              files = "\\.go$";
-            };
-
-            # Go imports
-            goimports = {
-              enable = true;
-              name = "goimports";
-              entry = "${pkgs.gotools}/bin/goimports -w";
-              files = "\\.go$";
-            };
-
-            # Go vet
-            govet = {
-              enable = true;
-              name = "go vet";
-              entry = "${pkgs.go}/bin/go vet ./...";
-              files = "\\.go$";
-              pass_filenames = false;
-            };
-
-            # Go mod tidy
-            gomod-tidy = {
-              enable = true;
-              name = "go mod tidy";
-              entry = "${pkgs.go}/bin/go mod tidy";
-              files = "go\\.(mod|sum)$";
-              pass_filenames = false;
-            };
-
-            # Nix formatting
-            nixpkgs-fmt = {
-              enable = true;
-              entry = "${pkgs.nixpkgs-fmt}/bin/nixpkgs-fmt";
-            };
-
-            # Trailing whitespace
-            trailing-whitespace = {
-              enable = true;
-              name = "trim trailing whitespace";
-              entry = "${pkgs.python3Packages.pre-commit-hooks}/bin/trailing-whitespace-fixer";
-              types = [ "text" ];
-            };
-
-            # End of file fixer
-            end-of-file-fixer = {
-              enable = true;
-              name = "fix end of files";
-              entry = "${pkgs.python3Packages.pre-commit-hooks}/bin/end-of-file-fixer";
-              types = [ "text" ];
-            };
-
-            # YAML check
-            check-yaml = {
-              enable = true;
-              name = "check yaml";
-              entry = "${pkgs.python3Packages.pre-commit-hooks}/bin/check-yaml";
-              files = "\\.ya?ml$";
-            };
-
-            # Markdown link check
-            markdown-link-check = {
-              enable = true;
-              name = "markdown link check";
-              entry = "${pkgs.nodePackages.markdown-link-check}/bin/markdown-link-check";
-              files = "\\.md$";
-            };
-          };
-        };
-
       in
       {
         packages = {
@@ -142,31 +59,38 @@
         };
 
         devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            # Go development
-            go
-            gotools
-            gopls
-            go-tools
-            delve
-            golangci-lint
+          buildInputs =
+            with pkgs;
+            [
+              # Go development
+              go
+              gotools
+              gopls
+              go-tools
+              golint
+              gosec
+              delve
+              golangci-lint
 
-            # Git tools
-            git
+              # Git tools
+              git
 
-            # Code formatting and linting
-            nixpkgs-fmt
+              # Code formatting and linting
+              nixpkgs-fmt
 
-            # Testing and coverage
-            go-junit-report
+              # Testing and coverage
+              go-junit-report
 
-            # Documentation
-            nodePackages.markdown-link-check
+              # Documentation
+              nodePackages.markdown-link-check
 
-            # Utilities
-            gnumake
-            jq
-          ];
+              # Utilities
+              gnumake
+              jq
+            ]
+            ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+              pkgs.apple-sdk_15
+            ];
 
           packages = with pkgs; [
             # Pre-commit hooks
@@ -178,7 +102,7 @@
             GO111MODULE = "on";
           };
 
-          shellHook = pre-commit-check.shellHook + ''
+          shellHook = ''
             echo "🚀 DevDashboard development environment"
             echo "======================================"
             echo ""
@@ -193,7 +117,6 @@
             echo "  nix build           - Build with Nix"
             echo "  nix flake check     - Run all checks"
             echo ""
-            echo "Pre-commit hooks are auto-installed in this shell."
             echo "Run 'pre-commit run --all-files' to check all files."
             echo "Note: In CI, use 'nix develop --command pre-commit run --all-files'"
             echo ""

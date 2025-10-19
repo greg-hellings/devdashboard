@@ -1,0 +1,14 @@
+go 1.24.0
+
+// DevDashboard workspace configuration.
+// This aggregates the core library/CLI module and the desktop GUI module.
+// Additional modules (mobile, web, shared) can be added here later.
+
+use (
+	./core
+	./gui/desktop
+)
+
+// To sync and vendor within modules:
+//   go work sync
+//   (then run `go mod tidy` inside each module as needed)

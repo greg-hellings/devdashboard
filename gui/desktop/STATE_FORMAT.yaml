@@ -1,0 +1,136 @@
+# DevDashboard Desktop GUI State (YAML Format)
+# ============================================
+# This file documents (and may serve as) the persisted GUI state for the
+# desktop application module. It intentionally mirrors the CLI configuration
+# style while adding GUI-specific metadata (window size, user preferences, etc.).
+#
+# Versioning:
+#   - Include a top-level "stateVersion" to allow future migrations.
+#   - Increment only when a breaking structural change is introduced.
+#
+# Persistence Strategy (planned):
+#   - Location (example): $XDG_CONFIG_HOME/devdashboard/gui_state.yaml
+#       macOS: ~/Library/Application Support/devdashboard/gui_state.yaml
+#       Linux: ~/.config/devdashboard/gui_state.yaml
+#       Windows: %AppData%\devdashboard\gui_state.yaml
+#   - Credentials (tokens) are NOT stored directly here once secure storage
+#     (OS keyring) is enabled. Instead token references or hints may appear.
+#
+# Security Note:
+#   - Do not store raw access tokens in this file when keyring integration
+#     is available. For early prototypes this file MAY temporarily contain
+#     tokens; mark clearly and purge before release.
+#
+# Merging With CLI Config:
+#   - The `providers` and `repositories` sections intentionally match the
+#     CLI YAML schema to enable export/import without transformation.
+#   - Additional GUI-only fields are namespaced under `gui:` to avoid
+#     collisions with future CLI keys.
+
+stateVersion: 1
+
+# Timestamp of last successful persistence (UTC ISO8601)
+savedAt: "2025-01-01T12:00:00Z"
+
+# A friendly profile name (future multi-profile support)
+profile: default
+
+# GUI namespace for user interface preferences and runtime info
+gui:
+  lastWindow:
+    width: 1100
+    height: 700
+    maximized: false
+  theme: "light"          # allowed: light | dark
+  recentConfigFiles:      # MRU list for quick access
+    - "/home/user/repos.yaml"
+  concurrency:
+    maxWorkers: 8         # Used for async dependency analysis
+  autoRefresh:
+    enabled: false
+    intervalSeconds: 900  # 15 minutes if enabled
+  logging:
+    ringBufferSize: 5000  # Max entries kept in memory
+    level: "info"         # info | debug | warn | error
+  lastReport:
+    generatedAt: null     # or ISO8601 timestamp when present
+    repoCount: 0
+    packageCount: 0
+
+# Providers mirror CLI configuration. Tokens may be omitted or stored in a
+# secure credential provider; here we store only hints.
+providers:
+  github:
+    default:
+      token: ""           # EMPTY => use keyring / env / none
+      owner: ""           # Optional owner default
+      repository: ""      # Optional repository default
+      ref: "main"
+      paths: []
+      packages: []
+      analyzer: "poetry"
+    repositories: []      # GUI will merge these with user-defined repos
+  gitlab:
+    default:
+      token: ""           # If present temporarily, remove before release
+      owner: ""
+      repository: ""
+      ref: "main"
+      paths: []
+      packages: []
+      analyzer: "poetry"
+    repositories: []
+
+# repositories (flattened form)
+# This section duplicates what is inside providers[*].repositories but can
+# be used as a denormalized cache for quick GUI listing. The authoritative
+# source remains inside the provider maps; this exists for potential GUI
+# optimizations and can be regenerated.
+repositoriesCache:
+  - provider: github
+    token: ""             # Keep empty or token hint only
+    owner: "golang"
+    repository: "go"
+    ref: "master"
+    paths:
+      - "/"
+    packages:
+      - "requests"
+      - "numpy"
+    analyzer: "poetry"
+
+# trackedPackages:
+# Global set of packages the user wants in the main comparison table.
+# This list is derived from union of repository-specific packages but can
+# be manually curated (e.g., remove noisy packages).
+trackedPackages:
+  - "numpy"
+  - "requests"
+
+# credentials (transient/testing ONLY):
+# REMOVE this entire section once keyring integration is implemented.
+# For production builds this should not exist or should remain empty.
+credentials:
+  githubToken: ""         # DO NOT COMMIT REAL TOKENS
+  gitlabToken: ""
+
+# errorLog (optional):
+# Accumulated recent errors for display in an error pane; truncated to
+# a maximum number of entries by the GUI logic.
+errorLog:
+  - time: "2025-01-01T11:59:00Z"
+    source: "dependency-report"
+    severity: "error"
+    message: "Failed to fetch repository metadata"
+    details: "network timeout contacting api.github.com"
+
+# reportHistory (future feature):
+# Placeholder for storing summaries of previous runs to enable diffing.
+reportHistory: []
+
+# Export Compatibility:
+# When exporting to a CLI YAML, only `providers` is required. GUI tooling
+# will ignore `gui`, `repositoriesCache`, `trackedPackages`, etc. during
+# export unless user checks an 'include extras' option.
+
+# End of GUI state file.
