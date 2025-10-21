@@ -16,167 +16,151 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-
+        lib = pkgs.lib;
         version = "0.2.0";
 
-        vendorHash = "sha256-Opv+u4wM4QL00GjSkrYayb2aS3eZIhTOkfBZ5niGhzo=";
+        # Common ldflags for reproducible, smaller binaries
+        commonLdflags = [
+          "-s"
+          "-w"
+          "-X main.version=${version}"
+        ];
 
-        devdashboard = pkgs.buildGoModule {
+        # CLI package build (core module)
+        cli = pkgs.buildGoModule {
           pname = "devdashboard";
-          inherit version vendorHash;
+          inherit version;
 
-          src = ./core;
+          # Build from repository root to allow multi-module sources
+          src = ./.;
 
-          ldflags = [
-            "-s"
-            "-w"
-            "-X main.version=${version}"
-          ];
+          # Point at module root containing go.mod
+          modRoot = "core";
 
-          meta = with pkgs.lib; {
-            description = "Repository management and dependency analysis tool for GitHub and GitLab";
+          # Packages (relative to modRoot) to build/install
+          subPackages = [ "cmd/devdashboard" ];
+
+          # Placeholder hash; run `nix build .#cli` to obtain real vendor hash and replace
+          vendorHash = "sha256-Opv+u4wM4QL00GjSkrYayb2aS3eZIhTOkfBZ5niGhzo=";
+
+          ldflags = commonLdflags;
+
+          meta = with lib; {
+            description = "DevDashboard CLI - Repository management and dependency analysis tool";
             homepage = "https://github.com/greg-hellings/devdashboard";
             license = licenses.mit;
             maintainers = [ ];
             mainProgram = "devdashboard";
           };
         };
+
+        # GUI desktop package build (gui/desktop module)
+        gui = pkgs.buildGoModule {
+          pname = "devdashboard-gui";
+          inherit version;
+
+          src = ./.;
+          modRoot = "gui/desktop";
+          subPackages = [ "cmd/devdashboard-gui" ];
+
+          # Replace directive in gui/desktop/go.mod:
+          #   replace github.com/greg-hellings/devdashboard/core => ../../core
+          # Works because build context root is src=./., and modRoot limits module resolution.
+          # Once core is version-tagged, drop the replace and require a version instead.
+
+          vendorHash = "sha256-Kjrmp7ot3EvuT+SO5rZqeTCYBGLWRhr8CBzMLIdkrZQ=";
+
+          ldflags = commonLdflags;
+
+          meta = with lib; {
+            description = "DevDashboard GUI - Repository management and dependency analysis tool";
+            homepage = "https://github.com/greg-hellings/devdashboard";
+            license = licenses.mit;
+            maintainers = [ ];
+            mainProgram = "devdashboard-gui";
+          };
+        };
       in
       {
         packages = {
-          default = devdashboard;
-          devdashboard = devdashboard;
+          inherit cli gui;
+          default = cli;
         };
 
+        # Convenience run target for the CLI
         apps = {
           default = {
             type = "app";
-            program = "${devdashboard}/bin/devdashboard";
+            program = "${cli}/bin/devdashboard";
             meta = {
-              description = "Run the dashboard CLI, by default";
+              description = "Run the DevDashboard CLI";
             };
           };
         };
 
-        devShells.default = pkgs.mkShell {
-          buildInputs =
-            with pkgs;
-            [
-              # Go development
-              go
-              gotools
-              gopls
-              go-tools
-              golint
-              gosec
-              delve
-              golangci-lint
+        # Developer shell with common tools
+        devShells = {
+          default = pkgs.mkShell {
+            buildInputs =
+              (with pkgs; [
+                go
+                gotools
+                gopls
+                go-tools
+                golangci-lint
+                golint
+                gosec
+                delve
+                nixpkgs-fmt
+                git
+                go-junit-report
+                nodePackages.markdown-link-check
+                gnumake
+                jq
+              ])
+              ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+                pkgs.apple-sdk_15
+              ];
 
-              # Git tools
-              git
-
-              # Code formatting and linting
-              nixpkgs-fmt
-
-              # Testing and coverage
-              go-junit-report
-
-              # Documentation
-              nodePackages.markdown-link-check
-
-              # Utilities
-              gnumake
-              jq
-            ]
-            ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
-              pkgs.apple-sdk_15
+            packages = with pkgs; [
+              pre-commit
             ];
 
-          packages = with pkgs; [
-            # Pre-commit hooks
-            pre-commit
-          ];
+            env = {
+              GOROOT = "${pkgs.go}/share/go";
+              GO111MODULE = "on";
+            };
 
-          env = {
-            GOROOT = "${pkgs.go}/share/go";
-            GO111MODULE = "on";
+            shellHook = ''
+              echo "🚀 DevDashboard development environment"
+              echo "======================================"
+              echo ""
+              echo "Go version: $(go version)"
+              echo ""
+              echo "Build targets:"
+              echo "  nix build .#cli        (CLI)"
+              echo "  nix build .#gui        (GUI)"
+              echo ""
+              echo "Common commands:"
+              echo "  make build             - Build CLI"
+              echo "  make test              - Run core tests"
+              echo "  make fmt               - Format code"
+              echo "  make check             - Run all checks"
+              echo "  pre-commit run --all-files"
+              echo ""
+              echo "Replace vendorHash placeholders by running:"
+              echo "  nix build .#cli"
+              echo "  nix build .#gui"
+              echo "and copying reported hashes back into flake.nix."
+              echo ""
+            '';
           };
-
-          shellHook = ''
-            echo "🚀 DevDashboard development environment"
-            echo "======================================"
-            echo ""
-            echo "Go version: $(go version)"
-            echo ""
-            echo "Available commands:"
-            echo "  make build          - Build the CLI tool"
-            echo "  make test           - Run tests"
-            echo "  make test-coverage  - Run tests with coverage"
-            echo "  make fmt            - Format code"
-            echo "  make check          - Run all checks"
-            echo "  nix build           - Build with Nix"
-            echo "  nix flake check     - Run all checks"
-            echo ""
-            echo "Run 'pre-commit run --all-files' to check all files."
-            echo "Note: In CI, use 'nix develop --command pre-commit run --all-files'"
-            echo ""
-          '';
         };
 
-        checks =
-          let
-            # Helper to run tests without re-fetching modules.
-            # Reuses the vendored dependencies produced by the devdashboard build.
-            commonTest =
-              name: pattern:
-              pkgs.runCommand name
-                {
-                  buildInputs = [
-                    pkgs.gcc
-                    pkgs.go
-                    devdashboard
-                  ];
-                }
-                ''
-                  export HOME=$(mktemp -d)
-                  # Need to create first, else the second copy makes a read-only dir
-                  mkdir -p src
-                  cp -r ${devdashboard.goModules.outPath}/ src/vendor || true
-                  cp -r ${./.}/* ${./.}/.* src
-                  cd src
-                  export GOFLAGS="-mod=vendor"
-                  go ${pattern} 2>&1 | tee $out
-                '';
-          in
-          {
-            # Build once
-            build = devdashboard;
-
-            # Aggregate test suites, all reuse the same vendored modules
-            test = commonTest "devdashboard-tests" "test -v ./pkg/...";
-            config-tests = commonTest "devdashboard-config-tests" "test -v ./pkg/config/...";
-            dependencies-tests = commonTest "devdashboard-dependencies-tests" "test -v ./pkg/dependencies/...";
-            repository-tests = commonTest "devdashboard-repository-tests" "test -v ./pkg/repository/...";
-
-            # Vet using vendored modules
-            vet = commonTest "devdashboard-vet" "vet ./...";
-
-            # Formatting check (doesn't need vendored deps)
-            fmt =
-              pkgs.runCommand "devdashboard-fmt"
-                {
-                  buildInputs = [ pkgs.go ];
-                }
-                ''
-                  unformatted=$(${pkgs.go}/bin/gofmt -l ${./.})
-                  if [ -n "$unformatted" ]; then
-                    echo "The following files are not formatted:" > $out
-                    echo "$unformatted" >> $out
-                    exit 1
-                  fi
-                  echo "All files are properly formatted" > $out
-                '';
-          };
+        # Expose both builds as checks
+        checks = {
+          inherit cli gui;
+        };
 
         formatter = pkgs.nixpkgs-fmt;
       }

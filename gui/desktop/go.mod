@@ -50,4 +50,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
+// Core module replacement:
+// Use a direct relative path to the sibling core module so `go build`,
+// staticcheck, and packaging work without creating a symlink or a
+// committed go.work file. Once the core module is version-tagged,
+// this replace can be dropped and a proper version required.
+// NOTE: Path uses ../../core (two levels up from gui/desktop).
 replace github.com/greg-hellings/devdashboard/core => ../../core
