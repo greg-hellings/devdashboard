@@ -41,7 +41,7 @@
           subPackages = [ "cmd/devdashboard" ];
 
           # Placeholder hash; run `nix build .#cli` to obtain real vendor hash and replace
-          vendorHash = "sha256-Opv+u4wM4QL00GjSkrYayb2aS3eZIhTOkfBZ5niGhzo=";
+          vendorHash = "sha256-o/NCg1ZBU6OmbUV9xCN2AajA9n5+gfPftZWioPWg8y0=";
 
           ldflags = commonLdflags;
 
