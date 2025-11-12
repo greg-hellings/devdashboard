@@ -36,7 +36,7 @@ The CI/CD pipeline is designed to ensure code quality, security, and reliability
 
 **Jobs:**
 - **coverage**: Generates coverage report with 70% threshold
-- **coverage-diff**: Compares coverage between base and PR (PRs only)
+- **coverage-diff**: Compares coverage between base and PR (PRs only, non-blocking)
 
 **Features:**
 - Uploads to Codecov and Coveralls

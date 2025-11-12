@@ -36,7 +36,7 @@ jobs:
           else
             VERSION=${GITHUB_REF#refs/tags/}
           fi
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Version: ${VERSION}"
 
       - name: Generate changelog
@@ -62,7 +62,7 @@ jobs:
           prerelease: ${{ contains(steps.get_version.outputs.version, 'rc') || contains(steps.get_version.outputs.version, 'beta') || contains(steps.get_version.outputs.version, 'alpha') }}
 
   build-binaries:
-    name: Build binaries
+    name: Build CLI binaries (core module)
     needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
@@ -98,26 +98,102 @@ jobs:
           go-version: "1.24"
           cache: true
 
-      - name: Build binary
+      - name: Sync workspace
+        run: go work sync
+
+      - name: Build CLI binary
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: |
-          go build -v -ldflags="-s -w -X main.version=${{ needs.create-release.outputs.version }}" -o ${{ matrix.asset_name }} ./cmd/devdashboard
+          go build -v -ldflags="-s -w -X main.version=${{ needs.create-release.outputs.version }}" -o ${{ matrix.asset_name }} ./core/cmd/devdashboard
 
       - name: Create archive
         run: |
           if [ "${{ matrix.goos }}" = "windows" ]; then
             7z a ${{ matrix.asset_name }}.zip ${{ matrix.asset_name }}
-            echo "ASSET_PATH=${{ matrix.asset_name }}.zip" >> $GITHUB_ENV
+            echo "ASSET_PATH=${{ matrix.asset_name }}.zip" >> "$GITHUB_ENV"
           else
             tar czf ${{ matrix.asset_name }}.tar.gz ${{ matrix.asset_name }}
-            echo "ASSET_PATH=${{ matrix.asset_name }}.tar.gz" >> $GITHUB_ENV
+            echo "ASSET_PATH=${{ matrix.asset_name }}.tar.gz" >> "$GITHUB_ENV"
           fi
         shell: bash
 
       - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ env.ASSET_PATH }}
+          asset_name: ${{ env.ASSET_PATH }}
+          asset_content_type: application/octet-stream
+
+  build-gui-binaries:
+    name: Build GUI binaries (desktop module)
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            asset_name: devdashboard-gui-linux-amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            asset_name: devdashboard-gui-linux-arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            asset_name: devdashboard-gui-darwin-amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            asset_name: devdashboard-gui-darwin-arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            asset_name: devdashboard-gui-windows-amd64.exe
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Sync workspace
+        run: go work sync
+
+      - name: Download GUI dependencies
+        working-directory: gui/desktop
+        run: go mod download
+
+      - name: Build GUI binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          go build -v -ldflags="-s -w -X main.version=${{ needs.create-release.outputs.version }}" -o ${{ matrix.asset_name }} ./gui/desktop/cmd/devdashboard-gui
+
+      - name: Create GUI archive
+        run: |
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            7z a ${{ matrix.asset_name }}.zip ${{ matrix.asset_name }}
+            echo "ASSET_PATH=${{ matrix.asset_name }}.zip" >> "$GITHUB_ENV"
+          else
+            tar czf ${{ matrix.asset_name }}.tar.gz ${{ matrix.asset_name }}
+            echo "ASSET_PATH=${{ matrix.asset_name }}.tar.gz" >> "$GITHUB_ENV"
+          fi
+        shell: bash
+
+      - name: Upload GUI Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

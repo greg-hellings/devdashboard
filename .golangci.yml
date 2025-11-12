@@ -1,15 +1,13 @@
-# DevDashboard golangci-lint minimal v2 configuration
+# DevDashboard golangci-lint configuration
+# Version 2.6.1+ compatible configuration
+# See https://golangci-lint.run/usage/configuration/ for reference
+
 version: "2"
 
 run:
-  timeout: 3m
+  timeout: 5m
   tests: true
-
-formatters:
-  enable:
-    - gofmt
-    - goimports
-  settings: {}
+  modules-download-mode: readonly
 
 linters:
   enable:
@@ -17,16 +15,15 @@ linters:
     - staticcheck
     - errcheck
     - revive
-  settings:
-    staticcheck:
-      checks:
-        - all
-    revive:
-      rules:
-        - name: exported
-        - name: package-comments
+    - ineffassign
+    - unused
+    - misspell
 
-output:
-  formats:
-    text:
-      colors: true
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

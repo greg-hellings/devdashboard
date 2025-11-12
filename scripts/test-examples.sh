@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-EXAMPLES_DIR="$PROJECT_DIR/examples"
+EXAMPLES_DIR="$PROJECT_DIR/core/examples"
 
 # Colors for output
 RED='\033[0;31m'
@@ -39,6 +39,9 @@ for dir in "$EXAMPLES_DIR"/*/; do
 
     # Change to example directory
     cd "$dir"
+
+    # Disable workspace mode - examples are independent modules with replace directives
+    export GOWORK=off
 
     # Run go mod tidy
     echo "  → Running go mod tidy..."

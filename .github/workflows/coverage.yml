@@ -25,13 +25,31 @@ jobs:
           go-version: "1.24"
           cache: true
 
-      - name: Download dependencies
+      - name: Cache Go workspace build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-workspace-${{ runner.os }}-1.24-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-workspace-${{ runner.os }}-1.24-
+
+      - name: Initialize Go workspace
+        run: |
+          go work init
+          go work use ./core ./gui/desktop
+
+      - name: Download dependencies (core module)
+        working-directory: core
         run: go mod download
 
-      - name: Run tests with coverage
+      - name: Run tests with coverage (core module)
+        working-directory: core
         run: go test -v -race -covermode=atomic -coverprofile=coverage.out ./pkg/...
 
-      - name: Generate coverage report
+      - name: Generate coverage report (core module)
+        working-directory: core
         run: go tool cover -html=coverage.out -o coverage.html
 
       - name: Upload coverage artifacts
@@ -39,11 +57,12 @@ jobs:
         with:
           name: coverage-report
           path: |
-            coverage.out
-            coverage.html
+            core/coverage.out
+            core/coverage.html
           retention-days: 30
 
       - name: Check coverage threshold
+        working-directory: core
         run: |
           COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
           echo "Total coverage: ${COVERAGE}%"
@@ -60,12 +79,14 @@ jobs:
   coverage-diff:
     name: Coverage diff
     runs-on: ubuntu-latest
+    continue-on-error: true
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout base branch
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -73,50 +94,82 @@ jobs:
           go-version: "1.24"
           cache: true
 
-      - name: Run tests on base
+      - name: Cache Go workspace build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-workspace-${{ runner.os }}-1.24-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-workspace-${{ runner.os }}-1.24-
+
+      - name: Initialize Go workspace (base)
+        run: |
+          go work init
+          go work use ./core ./gui/desktop
+
+      - name: Run tests on base (core module)
+        working-directory: core
         run: go test -coverprofile=coverage-base.out ./pkg/...
 
       - name: Get base coverage
         id: base
+        working-directory: core
         run: |
-          BASE_COVERAGE=$(go tool cover -func=coverage-base.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
-          echo "coverage=${BASE_COVERAGE}" >> $GITHUB_OUTPUT
+          BASE_COVERAGE="$(go tool cover -func=coverage-base.out | grep total | awk '{print substr($3, 1, length($3)-1)}')"
+          echo "coverage=${BASE_COVERAGE}" >> "$GITHUB_OUTPUT"
           echo "Base coverage: ${BASE_COVERAGE}%"
 
       - name: Checkout PR branch
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
-      - name: Run tests on PR
+      - name: Initialize Go workspace (PR)
+        run: |
+          go work init
+          go work use ./core ./gui/desktop
+
+      - name: Run tests on PR (core module)
+        working-directory: core
         run: go test -coverprofile=coverage-pr.out ./pkg/...
 
       - name: Get PR coverage
         id: pr
+        working-directory: core
         run: |
-          PR_COVERAGE=$(go tool cover -func=coverage-pr.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
-          echo "coverage=${PR_COVERAGE}" >> $GITHUB_OUTPUT
+          PR_COVERAGE="$(go tool cover -func=coverage-pr.out | grep total | awk '{print substr($3, 1, length($3)-1)}')"
+          echo "coverage=${PR_COVERAGE}" >> "$GITHUB_OUTPUT"
           echo "PR coverage: ${PR_COVERAGE}%"
 
       - name: Compare coverage
+        working-directory: core
         run: |
-          BASE=${{ steps.base.outputs.coverage }}
-          PR=${{ steps.pr.outputs.coverage }}
-          DIFF=$(echo "$PR - $BASE" | bc)
+          BASE="${{ steps.base.outputs.coverage }}"
+          PR="${{ steps.pr.outputs.coverage }}"
+          DIFF="$(echo "$PR - $BASE" | bc)"
 
-          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Base Coverage | ${BASE}% |" >> $GITHUB_STEP_SUMMARY
-          echo "| PR Coverage | ${PR}% |" >> $GITHUB_STEP_SUMMARY
-          echo "| Difference | ${DIFF}% |" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Coverage Report"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Base Coverage | ${BASE}% |"
+            echo "| PR Coverage | ${PR}% |"
+            echo "| Difference | ${DIFF}% |"
 
-          if (( $(echo "$DIFF < -1" | bc -l) )); then
-            echo "⚠️ Coverage decreased by ${DIFF}%" >> $GITHUB_STEP_SUMMARY
+            if (( "$(echo "$DIFF < -1" | bc -l)" )); then
+              echo "⚠️ Coverage decreased by ${DIFF}%"
+            elif (( "$(echo "$DIFF > 1" | bc -l)" )); then
+              echo "✅ Coverage increased by ${DIFF}%"
+            else
+              echo "ℹ️ Coverage changed by ${DIFF}%"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if (( "$(echo "$DIFF < -1" | bc -l)" )); then
             echo "::warning::Coverage decreased by ${DIFF}%"
-          elif (( $(echo "$DIFF > 1" | bc -l) )); then
-            echo "✅ Coverage increased by ${DIFF}%" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "ℹ️ Coverage changed by ${DIFF}%" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Comment PR

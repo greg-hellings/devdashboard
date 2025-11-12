@@ -1,0 +1,59 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+default_language_version:
+  python: python3
+exclude: |
+  (?x)(
+    migrations/|
+    .idea/|
+    venv/|
+    .git/
+  )
+fail_fast: false
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=900"]
+      - id: fix-byte-order-marker
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+
+  - repo: https://github.com/trufflesecurity/trufflehog
+    rev: v3.90.13
+    hooks:
+      - id: trufflehog
+
+  - repo: https://github.com/TekWizely/pre-commit-golang
+    rev: v1.0.0-rc.4
+    hooks:
+      - id: go-fmt
+      - id: go-mod-tidy-repo
+      - id: go-vet-repo-mod
+
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.6.1
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint (core)
+        args: [--timeout=5m, ./...]
+        files: ^core/
+        pass_filenames: false
+        entry: bash -c 'cd core && golangci-lint run --timeout=5m ./...'
+      - id: golangci-lint
+        name: golangci-lint (gui/desktop)
+        args: [--timeout=5m, ./...]
+        files: ^gui/desktop/
+        pass_filenames: false
+        entry: bash -c 'cd gui/desktop && golangci-lint run --timeout=5m ./...'
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.8
+    hooks:
+      - id: actionlint
