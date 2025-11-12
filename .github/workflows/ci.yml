@@ -134,6 +134,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libglx-dev libgl1-mesa-dev libxxf86vm-dev
+
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
