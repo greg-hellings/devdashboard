@@ -41,7 +41,7 @@
           subPackages = [ "cmd/devdashboard" ];
 
           # Placeholder hash; run `nix build .#cli` to obtain real vendor hash and replace
-          vendorHash = "sha256-o/NCg1ZBU6OmbUV9xCN2AajA9n5+gfPftZWioPWg8y0=";
+          vendorHash = "sha256-icE99gXkDYrKEmre+W+MWMFe+dfNLcjANUiVVrmBVWM=";
 
           ldflags = commonLdflags;
 
@@ -68,7 +68,7 @@
           # Works because build context root is src=./., and modRoot limits module resolution.
           # Once core is version-tagged, drop the replace and require a version instead.
 
-          vendorHash = "sha256-Kjrmp7ot3EvuT+SO5rZqeTCYBGLWRhr8CBzMLIdkrZQ=";
+          vendorHash = "sha256-W+gLIJiySo/DeN8v4MgMUAwX73PNMRAcKkUJkMTj6Gs=";
 
           ldflags = commonLdflags;
 
