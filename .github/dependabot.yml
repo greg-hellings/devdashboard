@@ -70,9 +70,9 @@ updates:
     assignees:
       - "greg-hellings"
 
-  # Docker (if Dockerfile exists)
+  # Docker
   - package-ecosystem: "docker"
-    directory: "/"
+    directory: "/core"
     schedule:
       interval: "weekly"
       day: "monday"
