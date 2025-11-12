@@ -65,6 +65,7 @@ func TestDependencyService_RunReport_ContextCancellation(t *testing.T) {
 	cancel()
 
 	// Drain progress channel
+	//nolint:revive // Intentionally empty - just draining the channel
 	for range progressCh {
 	}
 
@@ -172,7 +173,7 @@ func TestReportProgress_ErrorPhase(t *testing.T) {
 	}
 }
 
-func TestDependencyService_Interface(t *testing.T) {
+func TestDependencyService_Interface(_ *testing.T) {
 	// Verify that dependencyService implements DependencyService interface
 	var _ DependencyService = (*dependencyService)(nil)
 }

@@ -13,6 +13,7 @@ func TestNewGenerator(t *testing.T) {
 	gen := NewGenerator()
 	if gen == nil {
 		t.Fatal("NewGenerator returned nil")
+		return
 	}
 	if gen.depFactory == nil {
 		t.Error("Generator should have a dependency factory")
@@ -30,6 +31,7 @@ func TestGenerate_EmptyRepos(t *testing.T) {
 
 	if report == nil {
 		t.Fatal("Report should not be nil")
+		return
 	}
 
 	if len(report.Repositories) != 0 {

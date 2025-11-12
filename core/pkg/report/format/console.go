@@ -234,31 +234,31 @@ func detectTerminalWidth(w io.Writer) int {
 }
 
 // truncTransformer returns a text.Transformer to ellipsize overly wide cells.
-func truncTransformer(max int) text.Transformer {
+func truncTransformer(maxLen int) text.Transformer {
 	return func(val interface{}) string {
 		s := fmt.Sprint(val)
-		if runeLen := utf8.RuneCountInString(s); runeLen > max {
-			if max <= 1 {
+		if runeLen := utf8.RuneCountInString(s); runeLen > maxLen {
+			if maxLen <= 1 {
 				return "…"
 			}
-			return truncateRunes(s, max)
+			return truncateRunes(s, maxLen)
 		}
 		return s
 	}
 }
 
 // truncateRunes truncates a string to (max) runes with ellipsis.
-func truncateRunes(s string, max int) string {
-	if max <= 0 {
+func truncateRunes(s string, maxLen int) string {
+	if maxLen <= 0 {
 		return ""
 	}
-	if utf8.RuneCountInString(s) <= max {
+	if utf8.RuneCountInString(s) <= maxLen {
 		return s
 	}
 	var b strings.Builder
 	count := 0
 	for _, r := range s {
-		if count >= max-1 {
+		if count >= maxLen-1 {
 			break
 		}
 		b.WriteRune(r)

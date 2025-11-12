@@ -107,8 +107,8 @@ func TestInMemoryCredentialStore_ListProviders(t *testing.T) {
 	})
 
 	t.Run("with multiple tokens", func(t *testing.T) {
-		store.SetToken("github", "ghp_test")
-		store.SetToken("gitlab", "glpat_test")
+		_ = store.SetToken("github", "ghp_test")
+		_ = store.SetToken("gitlab", "glpat_test")
 		providers, err := store.ListProviders()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -199,8 +199,8 @@ func TestFallbackCredentialStore_GetToken(t *testing.T) {
 		fallback := NewInMemoryCredentialStore()
 		store := NewFallbackCredentialStore(primary, fallback)
 
-		primary.SetToken("github", "ghp_primary")
-		fallback.SetToken("github", "ghp_fallback")
+		_ = primary.SetToken("github", "ghp_primary")
+		_ = fallback.SetToken("github", "ghp_fallback")
 
 		token, err := store.GetToken("github")
 		if err != nil {
@@ -216,7 +216,7 @@ func TestFallbackCredentialStore_GetToken(t *testing.T) {
 		fallback := NewInMemoryCredentialStore()
 		store := NewFallbackCredentialStore(primary, fallback)
 
-		fallback.SetToken("github", "ghp_fallback")
+		_ = fallback.SetToken("github", "ghp_fallback")
 
 		token, err := store.GetToken("github")
 		if err != nil {
@@ -259,8 +259,8 @@ func TestFallbackCredentialStore_DeleteToken(t *testing.T) {
 		fallback := NewInMemoryCredentialStore()
 		store := NewFallbackCredentialStore(primary, fallback)
 
-		primary.SetToken("github", "ghp_primary")
-		fallback.SetToken("github", "ghp_fallback")
+		_ = primary.SetToken("github", "ghp_primary")
+		_ = fallback.SetToken("github", "ghp_fallback")
 
 		err := store.DeleteToken("github")
 		if err != nil {
@@ -285,9 +285,9 @@ func TestFallbackCredentialStore_ListProviders(t *testing.T) {
 		fallback := NewInMemoryCredentialStore()
 		store := NewFallbackCredentialStore(primary, fallback)
 
-		primary.SetToken("github", "ghp_primary")
-		fallback.SetToken("gitlab", "glpat_fallback")
-		fallback.SetToken("bitbucket", "bb_fallback")
+		_ = primary.SetToken("github", "ghp_primary")
+		_ = fallback.SetToken("gitlab", "glpat_fallback")
+		_ = fallback.SetToken("bitbucket", "bb_fallback")
 
 		providers, err := store.ListProviders()
 		if err != nil {
@@ -303,8 +303,8 @@ func TestFallbackCredentialStore_ListProviders(t *testing.T) {
 		fallback := NewInMemoryCredentialStore()
 		store := NewFallbackCredentialStore(primary, fallback)
 
-		primary.SetToken("github", "ghp_primary")
-		fallback.SetToken("github", "ghp_fallback")
+		_ = primary.SetToken("github", "ghp_primary")
+		_ = fallback.SetToken("github", "ghp_fallback")
 
 		providers, err := store.ListProviders()
 		if err != nil {
@@ -360,8 +360,8 @@ func TestResolveProviderToken(t *testing.T) {
 	})
 
 	t.Run("from environment variable", func(t *testing.T) {
-		os.Setenv("DEV_DASHBOARD_GITHUB_TOKEN", "ghp_env")
-		defer os.Unsetenv("DEV_DASHBOARD_GITHUB_TOKEN")
+		_ = os.Setenv("DEV_DASHBOARD_GITHUB_TOKEN", "ghp_env")
+		defer func() { _ = os.Unsetenv("DEV_DASHBOARD_GITHUB_TOKEN") }()
 
 		token, err := ResolveProviderToken("github", nil, nil)
 		if err != nil {
@@ -406,7 +406,7 @@ func TestResolveProviderToken(t *testing.T) {
 
 	t.Run("from credential store", func(t *testing.T) {
 		store := NewInMemoryCredentialStore()
-		store.SetToken("github", "ghp_store")
+		_ = store.SetToken("github", "ghp_store")
 
 		token, err := ResolveProviderToken("github", nil, store)
 		if err != nil {
@@ -418,8 +418,8 @@ func TestResolveProviderToken(t *testing.T) {
 	})
 
 	t.Run("priority order: env > state > store", func(t *testing.T) {
-		os.Setenv("DEV_DASHBOARD_GITHUB_TOKEN", "ghp_env")
-		defer os.Unsetenv("DEV_DASHBOARD_GITHUB_TOKEN")
+		_ = os.Setenv("DEV_DASHBOARD_GITHUB_TOKEN", "ghp_env")
+		defer func() { _ = os.Unsetenv("DEV_DASHBOARD_GITHUB_TOKEN") }()
 
 		state := &GUIState{
 			Credentials: &CredentialSnapshot{
@@ -428,7 +428,7 @@ func TestResolveProviderToken(t *testing.T) {
 		}
 
 		store := NewInMemoryCredentialStore()
-		store.SetToken("github", "ghp_store")
+		_ = store.SetToken("github", "ghp_store")
 
 		token, err := ResolveProviderToken("github", state, store)
 		if err != nil {
@@ -502,6 +502,7 @@ func TestNewInMemoryCredentialStore(t *testing.T) {
 	store := NewInMemoryCredentialStore()
 	if store == nil {
 		t.Fatal("expected non-nil store")
+		return
 	}
 	if store.tokens == nil {
 		t.Error("expected tokens map to be initialized")
@@ -513,6 +514,7 @@ func TestNewFallbackCredentialStore_NilFallback(t *testing.T) {
 	store := NewFallbackCredentialStore(primary, nil)
 	if store == nil {
 		t.Fatal("expected non-nil store")
+		return
 	}
 	if store.fallback == nil {
 		t.Error("expected fallback to be created when nil")
@@ -524,18 +526,18 @@ type failingCredentialStore struct {
 	getErr error
 }
 
-func (f *failingCredentialStore) SetToken(provider, token string) error {
+func (f *failingCredentialStore) SetToken(_, _ string) error {
 	return errors.New("set failed")
 }
 
-func (f *failingCredentialStore) GetToken(provider string) (string, error) {
+func (f *failingCredentialStore) GetToken(_ string) (string, error) {
 	if f.getErr != nil {
 		return "", f.getErr
 	}
 	return "", errors.New("get failed")
 }
 
-func (f *failingCredentialStore) DeleteToken(provider string) error {
+func (f *failingCredentialStore) DeleteToken(_ string) error {
 	return errors.New("delete failed")
 }
 

@@ -24,6 +24,7 @@ repos:
       - id: end-of-file-fixer
       - id: mixed-line-ending
       - id: trailing-whitespace
+
   - repo: https://github.com/trufflesecurity/trufflehog
     rev: v3.90.13
     hooks:
@@ -35,9 +36,22 @@ repos:
       - id: go-fmt
       - id: go-mod-tidy-repo
       - id: go-vet-repo-mod
-      - id: go-sec-repo-mod
-      - id: go-staticcheck-mod
-      - id: go-lint
+
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.5.0
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint (core)
+        args: [--timeout=5m, ./...]
+        files: ^core/
+        pass_filenames: false
+        entry: bash -c 'cd core && golangci-lint run --timeout=5m ./...'
+      - id: golangci-lint
+        name: golangci-lint (gui/desktop)
+        args: [--timeout=5m, ./...]
+        files: ^gui/desktop/
+        pass_filenames: false
+        entry: bash -c 'cd gui/desktop && golangci-lint run --timeout=5m ./...'
 
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.8

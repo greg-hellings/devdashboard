@@ -14,6 +14,7 @@ func TestNewDefaultGUIState(t *testing.T) {
 	state := NewDefaultGUIState()
 	if state == nil {
 		t.Fatal("expected non-nil state")
+		return
 	}
 	if state.StateVersion != 1 {
 		t.Errorf("expected StateVersion 1, got %d", state.StateVersion)
@@ -59,7 +60,7 @@ func TestSaveGUIState_LoadGUIState(t *testing.T) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatalf("failed to create config dir: %v", err)
 	}
-	defer os.Remove(statePath)
+	defer func() { _ = os.Remove(statePath) }()
 
 	// Create and save a state
 	state := NewDefaultGUIState()
@@ -220,7 +221,7 @@ func TestMergeCLIConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpfile.Name())
+	defer func() { _ = os.Remove(tmpfile.Name()) }()
 
 	// Write a simple config
 	configContent := `providers:
@@ -240,7 +241,7 @@ func TestMergeCLIConfig(t *testing.T) {
 	if _, err := tmpfile.WriteString(configContent); err != nil {
 		t.Fatalf("failed to write config: %v", err)
 	}
-	tmpfile.Close()
+	_ = tmpfile.Close()
 
 	state := NewDefaultGUIState()
 	err = state.MergeCLIConfig(tmpfile.Name())
@@ -461,7 +462,7 @@ func TestGUIState_SaveTimestamp(t *testing.T) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatalf("failed to create config dir: %v", err)
 	}
-	defer os.Remove(statePath)
+	defer func() { _ = os.Remove(statePath) }()
 
 	state := NewDefaultGUIState()
 	beforeSave := time.Now()

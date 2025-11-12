@@ -1,3 +1,5 @@
+// Package services provides high-level service abstractions for DevDashboard operations.
+// This includes asynchronous dependency report generation with progress tracking.
 package services
 
 // Dependency service scaffold providing an abstraction for running

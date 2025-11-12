@@ -339,7 +339,7 @@ func normalizeGUIState(st *GUIState) {
 }
 
 // AppendRecentConfig adds a file path to MRU list (de-duped, size-limited).
-func (s *GUIState) AppendRecentConfig(p string, max int) {
+func (s *GUIState) AppendRecentConfig(p string, maxItems int) {
 	if p == "" {
 		return
 	}
@@ -350,8 +350,8 @@ func (s *GUIState) AppendRecentConfig(p string, max int) {
 		}
 	}
 	s.GUI.RecentConfig = append([]string{p}, filtered...)
-	if max > 0 && len(s.GUI.RecentConfig) > max {
-		s.GUI.RecentConfig = s.GUI.RecentConfig[:max]
+	if maxItems > 0 && len(s.GUI.RecentConfig) > maxItems {
+		s.GUI.RecentConfig = s.GUI.RecentConfig[:maxItems]
 	}
 }
 

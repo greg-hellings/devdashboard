@@ -111,6 +111,7 @@ func TestNewGitLabClient(t *testing.T) {
 
 	if client == nil {
 		t.Fatal("NewGitLabClient returned nil client")
+		return
 	}
 
 	if client.config.Token != config.Token {
@@ -200,6 +201,7 @@ func TestNewGitHubClient(t *testing.T) {
 
 	if client == nil {
 		t.Fatal("NewGitHubClient returned nil client")
+		return
 	}
 
 	if client.config.Token != config.Token {

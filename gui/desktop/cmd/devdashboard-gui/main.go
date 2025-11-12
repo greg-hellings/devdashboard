@@ -1,3 +1,4 @@
+// Package main implements the DevDashboard Desktop GUI application.
 package main
 
 // DevDashboard Desktop GUI (Phase 2 Integration)
@@ -437,7 +438,7 @@ func buildSidebar(app fyne.App, dyn *fyne.Container, views map[viewID]fyne.Canva
 
 // ----- Providers View -----
 
-func buildProvidersView(rt *Runtime, app fyne.App, w fyne.Window) fyne.CanvasObject {
+func buildProvidersView(rt *Runtime, _ fyne.App, _ fyne.Window) fyne.CanvasObject {
 	// Token entries (prototype only)
 	githubToken := widget.NewPasswordEntry()
 	githubToken.SetPlaceHolder("GitHub token (optional)")
@@ -477,7 +478,7 @@ func buildProvidersView(rt *Runtime, app fyne.App, w fyne.Window) fyne.CanvasObj
 
 // ----- Repositories View -----
 
-func buildRepositoriesView(rt *Runtime, app fyne.App, w fyne.Window) fyne.CanvasObject {
+func buildRepositoriesView(rt *Runtime, _ fyne.App, w fyne.Window) fyne.CanvasObject {
 	repoList := widget.NewList(
 		func() int {
 			rt.mu.RLock()
@@ -652,7 +653,7 @@ func buildRepositoriesView(rt *Runtime, app fyne.App, w fyne.Window) fyne.Canvas
 			if rc == nil {
 				return
 			}
-			defer rc.Close()
+			defer func() { _ = rc.Close() }()
 			path := rc.URI().Path()
 			if path == "" {
 				return
@@ -774,7 +775,7 @@ func filterNonEmptyLines(s string) []string {
 
 // ----- Packages (Tracked) View -----
 
-func buildPackagesView(rt *Runtime, app fyne.App, w fyne.Window) fyne.CanvasObject {
+func buildPackagesView(rt *Runtime, _ fyne.App, w fyne.Window) fyne.CanvasObject {
 	list := widget.NewList(
 		func() int {
 			rt.mu.RLock()
@@ -989,7 +990,7 @@ func buildDependenciesView(rt *Runtime, app fyne.App, w fyne.Window, enqueueUI f
 	)
 }
 
-func runReportAsync(rt *Runtime, app fyne.App, enqueueUI func(func()), statusLabel *widget.Label) {
+func runReportAsync(rt *Runtime, _ fyne.App, enqueueUI func(func()), statusLabel *widget.Label) {
 	rt.mu.Lock()
 	if rt.reportRunning {
 		rt.mu.Unlock()
@@ -1188,7 +1189,7 @@ func showRepoDetailsModal(repo report.RepositoryReport, w fyne.Window) {
 
 // ----- Logs View -----
 
-func buildLogsView(rt *Runtime, app fyne.App, w fyne.Window, logHandler *RingLogHandler) fyne.CanvasObject {
+func buildLogsView(rt *Runtime, _ fyne.App, _ fyne.Window, logHandler *RingLogHandler) fyne.CanvasObject {
 	// Filtering controls
 	searchEntry := widget.NewEntry()
 	searchEntry.SetPlaceHolder("Filter text (substring)")
@@ -1347,7 +1348,7 @@ func exportJSONReport(rt *Runtime, w fyne.Window) {
 		if uc == nil {
 			return
 		}
-		defer uc.Close()
+		defer func() { _ = uc.Close() }()
 
 		successCount := 0
 		for _, rr := range rpt.Repositories {

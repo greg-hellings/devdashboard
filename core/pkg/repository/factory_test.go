@@ -15,6 +15,7 @@ func TestNewFactory(t *testing.T) {
 
 	if factory == nil {
 		t.Fatal("NewFactory returned nil")
+		return
 	}
 
 	if factory.config.Token != config.Token {

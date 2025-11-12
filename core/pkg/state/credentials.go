@@ -1,3 +1,5 @@
+// Package state provides consolidated application state management for DevDashboard.
+// This includes credential storage, GUI state persistence, and configuration management.
 package state
 
 // credentials.go
@@ -191,15 +193,15 @@ func (f *FallbackCredentialStore) ListProviders() ([]string, error) {
 type StubCredentialStore struct{}
 
 // SetToken is a no-op for StubCredentialStore.
-func (StubCredentialStore) SetToken(provider, token string) error { return nil }
+func (StubCredentialStore) SetToken(_, _ string) error { return nil }
 
 // GetToken always returns ErrCredentialNotFound for StubCredentialStore.
-func (StubCredentialStore) GetToken(provider string) (string, error) {
+func (StubCredentialStore) GetToken(_ string) (string, error) {
 	return "", ErrCredentialNotFound
 }
 
 // DeleteToken is a no-op for StubCredentialStore.
-func (StubCredentialStore) DeleteToken(provider string) error { return nil }
+func (StubCredentialStore) DeleteToken(_ string) error { return nil }
 
 // ListProviders returns an empty slice for StubCredentialStore.
 func (StubCredentialStore) ListProviders() ([]string, error) { return []string{}, nil }

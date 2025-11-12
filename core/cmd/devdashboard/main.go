@@ -67,7 +67,7 @@ DevDashboard - Dependency reporting tool
 Current focus: Generate a cross-repository dependency version report using a
 configuration file that declares providers, repositories, analyzers, and the
 packages to track.`),
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			initLogging()
 			return nil
 		},
@@ -90,7 +90,7 @@ func newVersionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Show version information",
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			fmt.Printf("DevDashboard version: %s\n", version)
 		},
 	}
@@ -153,7 +153,7 @@ func initLogging() {
 }
 
 // runDependencyReport executes the core logic for dependency-report.
-func runDependencyReport(cmd *cobra.Command, args []string) error {
+func runDependencyReport(_ *cobra.Command, args []string) error {
 	start := time.Now()
 	configFile := args[0]
 
