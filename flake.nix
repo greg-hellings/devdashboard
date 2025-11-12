@@ -117,6 +117,7 @@
                 nodePackages.markdown-link-check
                 gnumake
                 jq
+                python3
               ])
               ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
                 pkgs.apple-sdk_15
