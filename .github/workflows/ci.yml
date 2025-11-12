@@ -109,8 +109,10 @@ jobs:
           go-version: ${{ matrix.go-version }}
           cache: true
 
-      - name: Init go workspace
-        run: go work init
+      - name: Initialize Go workspace
+        run: |
+          go work init
+          go work use ./core ./gui/desktop
 
       - name: Sync workspace
         run: go work sync
