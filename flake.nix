@@ -70,6 +70,21 @@
 
           vendorHash = "sha256-W+gLIJiySo/DeN8v4MgMUAwX73PNMRAcKkUJkMTj6Gs=";
 
+          # X11 libraries required for Fyne GUI on Linux
+          buildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux (
+            with pkgs;
+            [
+              xorg.libX11
+              xorg.libXcursor
+              xorg.libXrandr
+              xorg.libXinerama
+              xorg.libXi
+              xorg.libXxf86vm
+              libGL
+              libglvnd
+            ]
+          );
+
           ldflags = commonLdflags;
 
           meta = with lib; {
@@ -121,7 +136,21 @@
               ])
               ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
                 pkgs.apple-sdk_15
-              ];
+              ]
+              ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux (
+                with pkgs;
+                [
+                  # X11 libraries required for Fyne GUI development on Linux
+                  xorg.libX11
+                  xorg.libXcursor
+                  xorg.libXrandr
+                  xorg.libXinerama
+                  xorg.libXi
+                  xorg.libXxf86vm
+                  libGL
+                  libglvnd
+                ]
+              );
 
             packages = with pkgs; [
               pre-commit
