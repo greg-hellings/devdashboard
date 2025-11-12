@@ -1,4 +1,4 @@
-.PHONY: all build build-gui run-gui gui-deps clean test run help install deps example
+.PHONY: all build clean test run help install deps example
 
 # Binary names
 BINARY_NAME=devdashboard
@@ -41,24 +41,7 @@ build:
 	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/devdashboard
 	@echo "Build complete: $(BUILD_DIR)/$(BINARY_NAME)"
 
-## build-gui: Build the optional GUI (requires 'gui' build tag)
-build-gui:
-	@echo "Building $(BINARY_NAME) GUI (optional)..."
-	@mkdir -p $(BUILD_DIR)
-	$(GOBUILD) -tags gui -o $(BUILD_DIR)/$(BINARY_NAME)-gui ./cmd/devdashboard-gui
-	@echo "GUI build complete: $(BUILD_DIR)/$(BINARY_NAME)-gui"
 
-## run-gui: Run the GUI (builds first if needed)
-run-gui: build-gui
-	@echo "Running $(BINARY_NAME) GUI..."
-	./$(BUILD_DIR)/$(BINARY_NAME)-gui
-
-## gui-deps: Vendor/tidy dependencies including GUI libs
-gui-deps:
-	@echo "Ensuring GUI dependencies (fyne) are present..."
-	$(GOMOD) tidy
-	$(GOMOD) vendor
-	@echo "GUI dependencies ready"
 
 ## examples: Build all example programs
 examples:
