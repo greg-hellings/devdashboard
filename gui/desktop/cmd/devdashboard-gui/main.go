@@ -527,7 +527,7 @@ func buildRepositoriesView(rt *Runtime, _ fyne.App, w fyne.Window) fyne.CanvasOb
 				r.Provider, r.Owner, r.Repository, r.Ref, r.Analyzer))
 		},
 	)
-	// Contextual edit/remove when a repository row is selected.
+	// Double-click to edit repository directly
 	repoList.OnSelected = func(i widget.ListItemID) {
 		rt.mu.RLock()
 		if i < 0 || i >= len(rt.state.RepositoriesCache) {
@@ -537,96 +537,31 @@ func buildRepositoriesView(rt *Runtime, _ fyne.App, w fyne.Window) fyne.CanvasOb
 		selected := rt.state.RepositoriesCache[i]
 		rt.mu.RUnlock()
 
-		editBtn := widget.NewButton("Edit", func() {
-			// Build edit form pre-populated with existing values
-			providerEntry := widget.NewSelect([]string{"github", "gitlab"}, nil)
-			providerEntry.SetSelected(selected.Provider)
+		// Build edit form pre-populated with existing values
+		providerEntry := widget.NewSelect([]string{"github", "gitlab"}, nil)
+		providerEntry.SetSelected(selected.Provider)
 
-			ownerEntry := widget.NewEntry()
-			ownerEntry.SetText(selected.Owner)
+		ownerEntry := widget.NewEntry()
+		ownerEntry.SetText(selected.Owner)
 
-			repoEntry := widget.NewEntry()
-			repoEntry.SetText(selected.Repository)
+		repoEntry := widget.NewEntry()
+		repoEntry.SetText(selected.Repository)
 
-			refEntry := widget.NewEntry()
-			refEntry.SetText(selected.Ref)
+		refEntry := widget.NewEntry()
+		refEntry.SetText(selected.Ref)
 
-			analyzerEntry := widget.NewSelect([]string{"poetry"}, nil)
-			analyzerEntry.SetSelected(selected.Analyzer)
+		analyzerEntry := widget.NewSelect([]string{"poetry", "pipfile", "uvlock"}, nil)
+		analyzerEntry.SetSelected(selected.Analyzer)
 
-			pathsEntry := widget.NewMultiLineEntry()
-			pathsEntry.SetText(strings.Join(selected.Paths, "\n"))
+		pathsEntry := widget.NewMultiLineEntry()
+		pathsEntry.SetText(strings.Join(selected.Paths, "\n"))
+		pathsEntry.SetMinRowsVisible(5)
 
-			packagesEntry := widget.NewMultiLineEntry()
-			packagesEntry.SetText(strings.Join(selected.Packages, "\n"))
+		packagesEntry := widget.NewMultiLineEntry()
+		packagesEntry.SetText(strings.Join(selected.Packages, "\n"))
+		packagesEntry.SetMinRowsVisible(5)
 
-			form := &widget.Form{
-				Items: []*widget.FormItem{
-					{Text: "Provider", Widget: providerEntry},
-					{Text: "Owner", Widget: ownerEntry},
-					{Text: "Repository", Widget: repoEntry},
-					{Text: "Ref", Widget: refEntry},
-					{Text: "Analyzer", Widget: analyzerEntry},
-					{Text: "Paths", Widget: pathsEntry},
-					{Text: "Packages", Widget: packagesEntry},
-				},
-				OnSubmit: func() {
-					newProvider := providerEntry.Selected
-					newOwner := strings.TrimSpace(ownerEntry.Text)
-					newRepo := strings.TrimSpace(repoEntry.Text)
-					newRef := strings.TrimSpace(refEntry.Text)
-					newAnalyzer := analyzerEntry.Selected
-					if newProvider == "" || newOwner == "" || newRepo == "" || newAnalyzer == "" {
-						dialog.ShowError(fmt.Errorf("required fields missing"), w)
-						return
-					}
-					newPaths := filterNonEmptyLines(pathsEntry.Text)
-					newPackages := filterNonEmptyLines(packagesEntry.Text)
-
-					// Apply changes
-					rt.mu.Lock()
-					// Remove old entry from its provider slice
-					for pi, wrapper := range rt.state.Providers {
-						updated := wrapper.Repositories[:0]
-						for _, r := range wrapper.Repositories {
-							if pi == selected.Provider &&
-								r.Owner == selected.Owner &&
-								r.Repository == selected.Repository &&
-								r.Ref == selected.Ref {
-								continue // drop old
-							}
-							updated = append(updated, r)
-						}
-						wrapper.Repositories = updated
-						rt.state.Providers[pi] = wrapper
-					}
-					// Add updated entry to new provider
-					wrapper := rt.state.Providers[newProvider]
-					wrapper.Repositories = append(wrapper.Repositories, config.RepoConfig{
-						Token:      selected.Token, // preserve token if any
-						Owner:      newOwner,
-						Repository: newRepo,
-						Ref:        newRef,
-						Paths:      newPaths,
-						Packages:   newPackages,
-						Analyzer:   newAnalyzer,
-					})
-					rt.state.Providers[newProvider] = wrapper
-					rt.state.RebuildRepositoriesCache()
-					rt.mu.Unlock()
-
-					saveState(rt)
-					repoList.Refresh()
-					dialog.ShowInformation("Updated", "Repository updated successfully.", w)
-				},
-				SubmitText: "Save",
-			}
-
-			dialog.ShowCustom(fmt.Sprintf("Edit %s/%s", selected.Owner, selected.Repository), "Close",
-				container.NewVScroll(form), w)
-		})
-
-		removeBtn := widget.NewButton("Remove", func() {
+		removeBtn := widget.NewButton("Remove Repository", func() {
 			dialog.ShowConfirm("Remove Repository",
 				fmt.Sprintf("Remove %s/%s@%s?", selected.Owner, selected.Repository, selected.Ref),
 				func(ok bool) {
@@ -658,15 +593,83 @@ func buildRepositoriesView(rt *Runtime, _ fyne.App, w fyne.Window) fyne.CanvasOb
 				}, w)
 		})
 
-		closeBtn := widget.NewButton("Close", func() {})
+		form := &widget.Form{
+			Items: []*widget.FormItem{
+				{Text: "Provider", Widget: providerEntry},
+				{Text: "Owner", Widget: ownerEntry},
+				{Text: "Repository", Widget: repoEntry},
+				{Text: "Ref", Widget: refEntry},
+				{Text: "Analyzer", Widget: analyzerEntry},
+				{Text: "Paths (one per line)", Widget: pathsEntry},
+				{Text: "Packages (one per line)", Widget: packagesEntry},
+			},
+			OnSubmit: func() {
+				newProvider := providerEntry.Selected
+				newOwner := strings.TrimSpace(ownerEntry.Text)
+				newRepo := strings.TrimSpace(repoEntry.Text)
+				newRef := strings.TrimSpace(refEntry.Text)
+				newAnalyzer := analyzerEntry.Selected
+				if newProvider == "" || newOwner == "" || newRepo == "" || newAnalyzer == "" {
+					dialog.ShowError(fmt.Errorf("required fields missing"), w)
+					return
+				}
+				newPaths := filterNonEmptyLines(pathsEntry.Text)
+				newPackages := filterNonEmptyLines(packagesEntry.Text)
 
-		dialog.ShowCustom("Repository Actions", "Dismiss",
-			container.NewVBox(
-				widget.NewLabel(fmt.Sprintf("Selected: %s/%s@%s (%s)",
-					selected.Owner, selected.Repository, selected.Ref, selected.Analyzer)),
-				widget.NewSeparator(),
-				container.NewHBox(editBtn, removeBtn, closeBtn),
-			), w)
+				// Apply changes
+				rt.mu.Lock()
+				// Remove old entry from its provider slice
+				for pi, wrapper := range rt.state.Providers {
+					updated := wrapper.Repositories[:0]
+					for _, r := range wrapper.Repositories {
+						if pi == selected.Provider &&
+							r.Owner == selected.Owner &&
+							r.Repository == selected.Repository &&
+							r.Ref == selected.Ref {
+							continue // drop old
+						}
+						updated = append(updated, r)
+					}
+					wrapper.Repositories = updated
+					rt.state.Providers[pi] = wrapper
+				}
+				// Add updated entry to new provider
+				wrapper := rt.state.Providers[newProvider]
+				wrapper.Repositories = append(wrapper.Repositories, config.RepoConfig{
+					Token:      selected.Token, // preserve token if any
+					Owner:      newOwner,
+					Repository: newRepo,
+					Ref:        newRef,
+					Paths:      newPaths,
+					Packages:   newPackages,
+					Analyzer:   newAnalyzer,
+				})
+				rt.state.Providers[newProvider] = wrapper
+				rt.state.RebuildRepositoriesCache()
+				rt.mu.Unlock()
+
+				saveState(rt)
+				repoList.Refresh()
+				dialog.ShowInformation("Updated", "Repository updated successfully.", w)
+			},
+			SubmitText: "Save",
+		}
+
+		formContainer := container.NewVBox(
+			form,
+			widget.NewSeparator(),
+			removeBtn,
+		)
+
+		// Create a larger dialog for better editing experience
+		editDialog := dialog.NewCustom(
+			fmt.Sprintf("Edit Repository: %s/%s", selected.Owner, selected.Repository),
+			"Cancel",
+			container.NewVScroll(formContainer),
+			w,
+		)
+		editDialog.Resize(fyne.NewSize(600, 500))
+		editDialog.Show()
 	}
 
 	status := widget.NewLabel("No repos loaded.")
@@ -727,7 +730,7 @@ func showAddRepositoryDialog(rt *Runtime, w fyne.Window, list *widget.List, stat
 	refEntry := widget.NewEntry()
 	refEntry.SetText("main")
 
-	analyzerEntry := widget.NewSelect([]string{"poetry"}, func(string) {})
+	analyzerEntry := widget.NewSelect([]string{"poetry", "pipfile", "uvlock"}, func(string) {})
 	analyzerEntry.SetSelected("poetry")
 
 	pathsEntry := widget.NewMultiLineEntry()
