@@ -39,6 +39,14 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
           skipPush: ${{ secrets.CACHIX_AUTH_TOKEN == '' }}
 
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-${{ runner.os }}-
+
       - name: Run pre-commit via Nix
         run: nix develop --command pre-commit run --all-files --show-diff-on-failure
 
@@ -57,6 +65,16 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
+
+      - name: Cache Go workspace build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-workspace-${{ runner.os }}-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-workspace-${{ runner.os }}-${{ matrix.go-version }}-
 
       - name: Initialize Go workspace
         run: |
@@ -109,6 +127,16 @@ jobs:
           go-version: ${{ matrix.go-version }}
           cache: true
 
+      - name: Cache Go workspace build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-workspace-${{ runner.os }}-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-workspace-${{ runner.os }}-${{ matrix.go-version }}-
+
       - name: Initialize Go workspace
         run: |
           go work init
@@ -134,6 +162,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Cache APT packages
+        if: runner.os == 'Linux'
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libglx-dev libgl1-mesa-dev libxxf86vm-dev
+          version: 1.0
+
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
@@ -145,6 +180,16 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
+
+      - name: Cache Go workspace build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-workspace-${{ runner.os }}-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-workspace-${{ runner.os }}-${{ matrix.go-version }}-
 
       - name: Initialize Go workspace
         run: |
@@ -173,6 +218,16 @@ jobs:
         with:
           go-version: "1.24"
           cache: true
+
+      - name: Cache Go workspace build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-workspace-${{ runner.os }}-1.24-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-workspace-${{ runner.os }}-1.24-
 
       - name: Initialize Go workspace
         run: |
@@ -249,6 +304,16 @@ jobs:
           go-version: "1.24"
           cache: true
 
+      - name: Cache Go workspace build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-workspace-${{ runner.os }}-1.24-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-workspace-${{ runner.os }}-1.24-
+
       - name: Initialize Go workspace
         run: |
           go work init
@@ -256,6 +321,12 @@ jobs:
 
       - name: Sync workspace
         run: go work sync
+
+      - name: Cache APT packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libglx-dev libgl1-mesa-dev libxxf86vm-dev
+          version: 1.0
 
       - name: Install Linux dependencies for GUI linting
         run: |
@@ -299,6 +370,16 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: "1.24"
+
+      - name: Cache Go workspace build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-workspace-${{ runner.os }}-1.24-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-workspace-${{ runner.os }}-1.24-
 
       - name: Initialize Go workspace
         run: |
