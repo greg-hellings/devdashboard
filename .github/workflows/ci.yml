@@ -58,6 +58,11 @@ jobs:
           go-version: ${{ matrix.go-version }}
           cache: true
 
+      - name: Initialize Go workspace
+        run: |
+          go work init
+          go work use ./core ./gui/desktop
+
       - name: Sync workspace
         run: go work sync
 
@@ -133,6 +138,11 @@ jobs:
           go-version: ${{ matrix.go-version }}
           cache: true
 
+      - name: Initialize Go workspace
+        run: |
+          go work init
+          go work use ./core ./gui/desktop
+
       - name: Sync workspace
         run: go work sync
 
@@ -155,6 +165,11 @@ jobs:
         with:
           go-version: "1.24"
           cache: true
+
+      - name: Initialize Go workspace
+        run: |
+          go work init
+          go work use ./core ./gui/desktop
 
       - name: Sync workspace
         run: go work sync
@@ -226,6 +241,11 @@ jobs:
           go-version: "1.24"
           cache: true
 
+      - name: Initialize Go workspace
+        run: |
+          go work init
+          go work use ./core ./gui/desktop
+
       - name: Sync workspace
         run: go work sync
 
@@ -266,6 +286,11 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: "1.24"
+
+      - name: Initialize Go workspace
+        run: |
+          go work init
+          go work use ./core ./gui/desktop
 
       - name: Sync workspace
         run: go work sync
