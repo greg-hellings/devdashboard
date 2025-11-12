@@ -31,7 +31,7 @@ jobs:
           git clone https://go.googlesource.com/go /tmp/go-tip
           cd /tmp/go-tip/src
           ./make.bash
-          echo "/tmp/go-tip/bin" >> $GITHUB_PATH
+          echo "/tmp/go-tip/bin" >> "$GITHUB_PATH"
 
       - name: Sync workspace
         run: go work sync

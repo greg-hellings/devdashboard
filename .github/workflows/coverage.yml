@@ -98,7 +98,7 @@ jobs:
         working-directory: core
         run: |
           BASE_COVERAGE="$(go tool cover -func=coverage-base.out | grep total | awk '{print substr($3, 1, length($3)-1)}')"
-          echo "coverage=${BASE_COVERAGE}" >> $GITHUB_OUTPUT
+          echo "coverage=${BASE_COVERAGE}" >> "$GITHUB_OUTPUT"
           echo "Base coverage: ${BASE_COVERAGE}%"
 
       - name: Checkout PR branch
@@ -119,32 +119,37 @@ jobs:
         id: pr
         working-directory: core
         run: |
-          PR_COVERAGE=$(go tool cover -func=coverage-pr.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
-          echo "coverage=${PR_COVERAGE}" >> $GITHUB_OUTPUT
+          PR_COVERAGE="$(go tool cover -func=coverage-pr.out | grep total | awk '{print substr($3, 1, length($3)-1)}')"
+          echo "coverage=${PR_COVERAGE}" >> "$GITHUB_OUTPUT"
           echo "PR coverage: ${PR_COVERAGE}%"
 
       - name: Compare coverage
         working-directory: core
         run: |
-          BASE=${{ steps.base.outputs.coverage }}
-          PR=${{ steps.pr.outputs.coverage }}
-          DIFF=$(echo "$PR - $BASE" | bc)
+          BASE="${{ steps.base.outputs.coverage }}"
+          PR="${{ steps.pr.outputs.coverage }}"
+          DIFF="$(echo "$PR - $BASE" | bc)"
 
-          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Base Coverage | ${BASE}% |" >> $GITHUB_STEP_SUMMARY
-          echo "| PR Coverage | ${PR}% |" >> $GITHUB_STEP_SUMMARY
-          echo "| Difference | ${DIFF}% |" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Coverage Report"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Base Coverage | ${BASE}% |"
+            echo "| PR Coverage | ${PR}% |"
+            echo "| Difference | ${DIFF}% |"
 
-          if (( $(echo "$DIFF < -1" | bc -l) )); then
-            echo "⚠️ Coverage decreased by ${DIFF}%" >> $GITHUB_STEP_SUMMARY
+            if (( "$(echo "$DIFF < -1" | bc -l)" )); then
+              echo "⚠️ Coverage decreased by ${DIFF}%"
+            elif (( "$(echo "$DIFF > 1" | bc -l)" )); then
+              echo "✅ Coverage increased by ${DIFF}%"
+            else
+              echo "ℹ️ Coverage changed by ${DIFF}%"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if (( "$(echo "$DIFF < -1" | bc -l)" )); then
             echo "::warning::Coverage decreased by ${DIFF}%"
-          elif (( $(echo "$DIFF > 1" | bc -l) )); then
-            echo "✅ Coverage increased by ${DIFF}%" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "ℹ️ Coverage changed by ${DIFF}%" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Comment PR

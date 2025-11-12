@@ -41,7 +41,7 @@
           subPackages = [ "cmd/devdashboard" ];
 
           # Placeholder hash; run `nix build .#cli` to obtain real vendor hash and replace
-          vendorHash = "sha256-icE99gXkDYrKEmre+W+MWMFe+dfNLcjANUiVVrmBVWM=";
+          vendorHash = "sha256-e1ROhZp4b3XMa5dtLUhjUn7E0nyAbF8Lj4GjElaTgms=";
 
           ldflags = commonLdflags;
 
@@ -137,6 +137,7 @@
                 jq
                 python3
                 pkg-config
+                shellcheck
               ])
               ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
                 pkgs.apple-sdk_15
