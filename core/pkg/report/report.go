@@ -62,6 +62,11 @@ func NewGenerator() *Generator {
 func (g *Generator) Generate(ctx context.Context, repos []config.RepoWithProvider) (*Report, error) {
 	slog.Info("Starting dependency report generation", "repoCount", len(repos))
 
+	// Check if context is already canceled
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
 	// Collect all unique packages to track
 	packageSet := make(map[string]bool)
 	for _, repo := range repos {
@@ -89,6 +94,11 @@ func (g *Generator) Generate(ctx context.Context, repos []config.RepoWithProvide
 	}
 
 	wg.Wait()
+
+	// Check if context was canceled during analysis
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 
 	slog.Info("Dependency report generation complete", "repoCount", len(repos))
 
