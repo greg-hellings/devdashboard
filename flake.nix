@@ -70,6 +70,9 @@
 
           vendorHash = "sha256-W+gLIJiySo/DeN8v4MgMUAwX73PNMRAcKkUJkMTj6Gs=";
 
+          # pkg-config is required to find libraries during build
+          nativeBuildInputs = [ pkgs.pkg-config ];
+
           # X11 libraries required for Fyne GUI on Linux
           buildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux (
             with pkgs;
@@ -133,6 +136,7 @@
                 gnumake
                 jq
                 python3
+                pkg-config
               ])
               ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
                 pkgs.apple-sdk_15
