@@ -386,7 +386,10 @@ func buildUI(app fyne.App, w fyne.Window, rt *Runtime, logHandler *RingLogHandle
 		viewHistory:      historyView,
 	}
 
-	sidebar := buildSidebar(app, dyn, views, rt)
+	// Track current view for highlighting
+	currentView := viewDependencies
+
+	sidebar := buildSidebar(app, dyn, views, rt, &currentView)
 
 	// Initial view
 	dyn.Objects = []fyne.CanvasObject{depsView}
@@ -396,17 +399,41 @@ func buildUI(app fyne.App, w fyne.Window, rt *Runtime, logHandler *RingLogHandle
 	return split
 }
 
-func buildSidebar(app fyne.App, dyn *fyne.Container, views map[viewID]fyne.CanvasObject, rt *Runtime) fyne.CanvasObject {
+func buildSidebar(app fyne.App, dyn *fyne.Container, views map[viewID]fyne.CanvasObject, rt *Runtime, currentView *viewID) fyne.CanvasObject {
 	title := widget.NewLabel(fmt.Sprintf("DevDashboard %s", version))
 	title.Alignment = fyne.TextAlignCenter
 	title.TextStyle = fyne.TextStyle{Bold: true}
 
+	// Map to store button references for styling updates
+	buttons := make(map[viewID]*widget.Button)
+
 	switchViewBtn := func(id viewID) *widget.Button {
-		return widget.NewButton(string(id), func() {
+		btn := widget.NewButton(string(id), func() {
 			slog.Info("Switch view", "view", id)
+			*currentView = id
 			dyn.Objects = []fyne.CanvasObject{views[id]}
 			dyn.Refresh()
+
+			// Update button styling to highlight active view
+			for viewName, button := range buttons {
+				if viewName == id {
+					button.Importance = widget.HighImportance
+				} else {
+					button.Importance = widget.MediumImportance
+				}
+				button.Refresh()
+			}
 		})
+
+		// Set initial importance based on current view
+		if id == *currentView {
+			btn.Importance = widget.HighImportance
+		} else {
+			btn.Importance = widget.MediumImportance
+		}
+
+		buttons[id] = btn
+		return btn
 	}
 
 	themeToggle := widget.NewButton("Toggle Theme", func() {
