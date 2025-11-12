@@ -40,6 +40,9 @@ for dir in "$EXAMPLES_DIR"/*/; do
     # Change to example directory
     cd "$dir"
 
+    # Disable workspace mode - examples are independent modules with replace directives
+    export GOWORK=off
+
     # Run go mod tidy
     echo "  → Running go mod tidy..."
     if go mod tidy 2>&1; then
