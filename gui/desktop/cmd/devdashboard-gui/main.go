@@ -297,7 +297,7 @@ func main() {
 	w.SetContent(root)
 
 	// Start auto-refresh if enabled (pass dispatcher)
-	startAutoRefresh(runtime, app, enqueueUI)
+	startAutoRefresh(runtime, enqueueUI)
 
 	w.SetCloseIntercept(func() {
 		slog.Info("Window closing - saving state")
@@ -314,7 +314,7 @@ func main() {
 
 // ----- Auto-Refresh -----
 
-func startAutoRefresh(rt *Runtime, app fyne.App, enqueueUI func(func())) {
+func startAutoRefresh(rt *Runtime, enqueueUI func(func())) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	if !rt.state.GUI.AutoRefresh.Enabled || rt.state.GUI.AutoRefresh.IntervalSeconds <= 0 {
@@ -339,7 +339,7 @@ func startAutoRefresh(rt *Runtime, app fyne.App, enqueueUI func(func())) {
 					slog.Info("Auto-refresh triggering report")
 					fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "Auto-refresh", Content: "Refreshing dependencies"})
 					enqueueUI(func() {
-						runReportAsync(rt, app, enqueueUI, nil) // status label updated in view if present
+						runReportAsync(rt, enqueueUI, nil, nil, nil) // status label, table, and container updated in view if present
 					})
 				} else {
 					slog.Debug("Skipping auto-refresh; report already running")
@@ -371,7 +371,7 @@ func buildUI(app fyne.App, w fyne.Window, rt *Runtime, logHandler *RingLogHandle
 	// Pre-build views
 	providersView := buildProvidersView(rt, app, w)
 	reposView := buildRepositoriesView(rt, app, w)
-	depsView := buildDependenciesView(rt, app, w, enqueueUI)
+	depsView := buildDependenciesView(rt, w, enqueueUI)
 	packagesView := buildPackagesView(rt, app, w)
 	logsView := buildLogsView(rt, app, w, logHandler)
 
@@ -386,7 +386,10 @@ func buildUI(app fyne.App, w fyne.Window, rt *Runtime, logHandler *RingLogHandle
 		viewHistory:      historyView,
 	}
 
-	sidebar := buildSidebar(app, dyn, views, rt)
+	// Track current view for highlighting
+	currentView := viewDependencies
+
+	sidebar := buildSidebar(app, dyn, views, rt, &currentView)
 
 	// Initial view
 	dyn.Objects = []fyne.CanvasObject{depsView}
@@ -396,17 +399,41 @@ func buildUI(app fyne.App, w fyne.Window, rt *Runtime, logHandler *RingLogHandle
 	return split
 }
 
-func buildSidebar(app fyne.App, dyn *fyne.Container, views map[viewID]fyne.CanvasObject, rt *Runtime) fyne.CanvasObject {
+func buildSidebar(app fyne.App, dyn *fyne.Container, views map[viewID]fyne.CanvasObject, rt *Runtime, currentView *viewID) fyne.CanvasObject {
 	title := widget.NewLabel(fmt.Sprintf("DevDashboard %s", version))
 	title.Alignment = fyne.TextAlignCenter
 	title.TextStyle = fyne.TextStyle{Bold: true}
 
+	// Map to store button references for styling updates
+	buttons := make(map[viewID]*widget.Button)
+
 	switchViewBtn := func(id viewID) *widget.Button {
-		return widget.NewButton(string(id), func() {
+		btn := widget.NewButton(string(id), func() {
 			slog.Info("Switch view", "view", id)
+			*currentView = id
 			dyn.Objects = []fyne.CanvasObject{views[id]}
 			dyn.Refresh()
+
+			// Update button styling to highlight active view
+			for viewName, button := range buttons {
+				if viewName == id {
+					button.Importance = widget.HighImportance
+				} else {
+					button.Importance = widget.MediumImportance
+				}
+				button.Refresh()
+			}
 		})
+
+		// Set initial importance based on current view
+		if id == *currentView {
+			btn.Importance = widget.HighImportance
+		} else {
+			btn.Importance = widget.MediumImportance
+		}
+
+		buttons[id] = btn
+		return btn
 	}
 
 	themeToggle := widget.NewButton("Toggle Theme", func() {
@@ -500,7 +527,7 @@ func buildRepositoriesView(rt *Runtime, _ fyne.App, w fyne.Window) fyne.CanvasOb
 				r.Provider, r.Owner, r.Repository, r.Ref, r.Analyzer))
 		},
 	)
-	// Contextual edit/remove when a repository row is selected.
+	// Double-click to edit repository directly
 	repoList.OnSelected = func(i widget.ListItemID) {
 		rt.mu.RLock()
 		if i < 0 || i >= len(rt.state.RepositoriesCache) {
@@ -510,96 +537,31 @@ func buildRepositoriesView(rt *Runtime, _ fyne.App, w fyne.Window) fyne.CanvasOb
 		selected := rt.state.RepositoriesCache[i]
 		rt.mu.RUnlock()
 
-		editBtn := widget.NewButton("Edit", func() {
-			// Build edit form pre-populated with existing values
-			providerEntry := widget.NewSelect([]string{"github", "gitlab"}, nil)
-			providerEntry.SetSelected(selected.Provider)
+		// Build edit form pre-populated with existing values
+		providerEntry := widget.NewSelect([]string{"github", "gitlab"}, nil)
+		providerEntry.SetSelected(selected.Provider)
 
-			ownerEntry := widget.NewEntry()
-			ownerEntry.SetText(selected.Owner)
+		ownerEntry := widget.NewEntry()
+		ownerEntry.SetText(selected.Owner)
 
-			repoEntry := widget.NewEntry()
-			repoEntry.SetText(selected.Repository)
+		repoEntry := widget.NewEntry()
+		repoEntry.SetText(selected.Repository)
 
-			refEntry := widget.NewEntry()
-			refEntry.SetText(selected.Ref)
+		refEntry := widget.NewEntry()
+		refEntry.SetText(selected.Ref)
 
-			analyzerEntry := widget.NewSelect([]string{"poetry"}, nil)
-			analyzerEntry.SetSelected(selected.Analyzer)
+		analyzerEntry := widget.NewSelect([]string{"poetry", "pipfile", "uvlock"}, nil)
+		analyzerEntry.SetSelected(selected.Analyzer)
 
-			pathsEntry := widget.NewMultiLineEntry()
-			pathsEntry.SetText(strings.Join(selected.Paths, "\n"))
+		pathsEntry := widget.NewMultiLineEntry()
+		pathsEntry.SetText(strings.Join(selected.Paths, "\n"))
+		pathsEntry.SetMinRowsVisible(5)
 
-			packagesEntry := widget.NewMultiLineEntry()
-			packagesEntry.SetText(strings.Join(selected.Packages, "\n"))
+		packagesEntry := widget.NewMultiLineEntry()
+		packagesEntry.SetText(strings.Join(selected.Packages, "\n"))
+		packagesEntry.SetMinRowsVisible(5)
 
-			form := &widget.Form{
-				Items: []*widget.FormItem{
-					{Text: "Provider", Widget: providerEntry},
-					{Text: "Owner", Widget: ownerEntry},
-					{Text: "Repository", Widget: repoEntry},
-					{Text: "Ref", Widget: refEntry},
-					{Text: "Analyzer", Widget: analyzerEntry},
-					{Text: "Paths", Widget: pathsEntry},
-					{Text: "Packages", Widget: packagesEntry},
-				},
-				OnSubmit: func() {
-					newProvider := providerEntry.Selected
-					newOwner := strings.TrimSpace(ownerEntry.Text)
-					newRepo := strings.TrimSpace(repoEntry.Text)
-					newRef := strings.TrimSpace(refEntry.Text)
-					newAnalyzer := analyzerEntry.Selected
-					if newProvider == "" || newOwner == "" || newRepo == "" || newAnalyzer == "" {
-						dialog.ShowError(fmt.Errorf("required fields missing"), w)
-						return
-					}
-					newPaths := filterNonEmptyLines(pathsEntry.Text)
-					newPackages := filterNonEmptyLines(packagesEntry.Text)
-
-					// Apply changes
-					rt.mu.Lock()
-					// Remove old entry from its provider slice
-					for pi, wrapper := range rt.state.Providers {
-						updated := wrapper.Repositories[:0]
-						for _, r := range wrapper.Repositories {
-							if pi == selected.Provider &&
-								r.Owner == selected.Owner &&
-								r.Repository == selected.Repository &&
-								r.Ref == selected.Ref {
-								continue // drop old
-							}
-							updated = append(updated, r)
-						}
-						wrapper.Repositories = updated
-						rt.state.Providers[pi] = wrapper
-					}
-					// Add updated entry to new provider
-					wrapper := rt.state.Providers[newProvider]
-					wrapper.Repositories = append(wrapper.Repositories, config.RepoConfig{
-						Token:      selected.Token, // preserve token if any
-						Owner:      newOwner,
-						Repository: newRepo,
-						Ref:        newRef,
-						Paths:      newPaths,
-						Packages:   newPackages,
-						Analyzer:   newAnalyzer,
-					})
-					rt.state.Providers[newProvider] = wrapper
-					rt.state.RebuildRepositoriesCache()
-					rt.mu.Unlock()
-
-					saveState(rt)
-					repoList.Refresh()
-					dialog.ShowInformation("Updated", "Repository updated successfully.", w)
-				},
-				SubmitText: "Save",
-			}
-
-			dialog.ShowCustom(fmt.Sprintf("Edit %s/%s", selected.Owner, selected.Repository), "Close",
-				container.NewVScroll(form), w)
-		})
-
-		removeBtn := widget.NewButton("Remove", func() {
+		removeBtn := widget.NewButton("Remove Repository", func() {
 			dialog.ShowConfirm("Remove Repository",
 				fmt.Sprintf("Remove %s/%s@%s?", selected.Owner, selected.Repository, selected.Ref),
 				func(ok bool) {
@@ -631,15 +593,83 @@ func buildRepositoriesView(rt *Runtime, _ fyne.App, w fyne.Window) fyne.CanvasOb
 				}, w)
 		})
 
-		closeBtn := widget.NewButton("Close", func() {})
+		form := &widget.Form{
+			Items: []*widget.FormItem{
+				{Text: "Provider", Widget: providerEntry},
+				{Text: "Owner", Widget: ownerEntry},
+				{Text: "Repository", Widget: repoEntry},
+				{Text: "Ref", Widget: refEntry},
+				{Text: "Analyzer", Widget: analyzerEntry},
+				{Text: "Paths (one per line)", Widget: pathsEntry},
+				{Text: "Packages (one per line)", Widget: packagesEntry},
+			},
+			OnSubmit: func() {
+				newProvider := providerEntry.Selected
+				newOwner := strings.TrimSpace(ownerEntry.Text)
+				newRepo := strings.TrimSpace(repoEntry.Text)
+				newRef := strings.TrimSpace(refEntry.Text)
+				newAnalyzer := analyzerEntry.Selected
+				if newProvider == "" || newOwner == "" || newRepo == "" || newAnalyzer == "" {
+					dialog.ShowError(fmt.Errorf("required fields missing"), w)
+					return
+				}
+				newPaths := filterNonEmptyLines(pathsEntry.Text)
+				newPackages := filterNonEmptyLines(packagesEntry.Text)
 
-		dialog.ShowCustom("Repository Actions", "Dismiss",
-			container.NewVBox(
-				widget.NewLabel(fmt.Sprintf("Selected: %s/%s@%s (%s)",
-					selected.Owner, selected.Repository, selected.Ref, selected.Analyzer)),
-				widget.NewSeparator(),
-				container.NewHBox(editBtn, removeBtn, closeBtn),
-			), w)
+				// Apply changes
+				rt.mu.Lock()
+				// Remove old entry from its provider slice
+				for pi, wrapper := range rt.state.Providers {
+					updated := wrapper.Repositories[:0]
+					for _, r := range wrapper.Repositories {
+						if pi == selected.Provider &&
+							r.Owner == selected.Owner &&
+							r.Repository == selected.Repository &&
+							r.Ref == selected.Ref {
+							continue // drop old
+						}
+						updated = append(updated, r)
+					}
+					wrapper.Repositories = updated
+					rt.state.Providers[pi] = wrapper
+				}
+				// Add updated entry to new provider
+				wrapper := rt.state.Providers[newProvider]
+				wrapper.Repositories = append(wrapper.Repositories, config.RepoConfig{
+					Token:      selected.Token, // preserve token if any
+					Owner:      newOwner,
+					Repository: newRepo,
+					Ref:        newRef,
+					Paths:      newPaths,
+					Packages:   newPackages,
+					Analyzer:   newAnalyzer,
+				})
+				rt.state.Providers[newProvider] = wrapper
+				rt.state.RebuildRepositoriesCache()
+				rt.mu.Unlock()
+
+				saveState(rt)
+				repoList.Refresh()
+				dialog.ShowInformation("Updated", "Repository updated successfully.", w)
+			},
+			SubmitText: "Save",
+		}
+
+		formContainer := container.NewVBox(
+			form,
+			widget.NewSeparator(),
+			removeBtn,
+		)
+
+		// Create a larger dialog for better editing experience
+		editDialog := dialog.NewCustom(
+			fmt.Sprintf("Edit Repository: %s/%s", selected.Owner, selected.Repository),
+			"Cancel",
+			container.NewVScroll(formContainer),
+			w,
+		)
+		editDialog.Resize(fyne.NewSize(600, 500))
+		editDialog.Show()
 	}
 
 	status := widget.NewLabel("No repos loaded.")
@@ -700,7 +730,7 @@ func showAddRepositoryDialog(rt *Runtime, w fyne.Window, list *widget.List, stat
 	refEntry := widget.NewEntry()
 	refEntry.SetText("main")
 
-	analyzerEntry := widget.NewSelect([]string{"poetry"}, func(string) {})
+	analyzerEntry := widget.NewSelect([]string{"poetry", "pipfile", "uvlock"}, func(string) {})
 	analyzerEntry.SetSelected("poetry")
 
 	pathsEntry := widget.NewMultiLineEntry()
@@ -854,39 +884,113 @@ func editTrackedPackagesDialog(rt *Runtime, w fyne.Window, list *widget.List, st
 
 // ----- Dependencies (Report) View -----
 
-func buildDependenciesView(rt *Runtime, app fyne.App, w fyne.Window, enqueueUI func(func())) fyne.CanvasObject {
-	status := widget.NewLabel("No report generated.")
-	progressList := widget.NewList(
-		func() int {
-			rt.mu.RLock()
-			defer rt.mu.RUnlock()
-			return len(rt.progressEvents)
-		},
-		func() fyne.CanvasObject { return widget.NewLabel("") },
-		func(i widget.ListItemID, o fyne.CanvasObject) {
-			rt.mu.RLock()
-			defer rt.mu.RUnlock()
-			if i < len(rt.progressEvents) {
-				ev := rt.progressEvents[i]
-				txt := fmt.Sprintf("%s %s", ev.Phase, ev.RepoID)
-				if ev.Error != nil {
-					txt += " (error)"
-				}
-				o.(*widget.Label).SetText(txt)
-			} else {
-				o.(*widget.Label).SetText("")
-			}
-		},
+// calculateRepoColumnWidth calculates the optimal width for the repository column
+// based on the longest repository name in the report
+func calculateRepoColumnWidth(rpt *report.Report) float32 {
+	if rpt == nil || len(rpt.Repositories) == 0 {
+		return 300 // default width
+	}
+
+	// Find the longest repository name
+	maxLen := len("Repository") // Start with header text
+	longestText := "Repository"
+
+	for _, repo := range rpt.Repositories {
+		repoText := fmt.Sprintf("%s/%s@%s", repo.Owner, repo.Repository, repo.Ref)
+		if len(repoText) > maxLen {
+			maxLen = len(repoText)
+			longestText = repoText
+		}
+	}
+
+	// Measure the text width using Fyne's text measurement with bold style
+	// (header is bold, so use that for measurement)
+	textSize := fyne.MeasureText(longestText, fyne.CurrentApp().Settings().Theme().Size("text"), fyne.TextStyle{Bold: true})
+
+	// Add padding (20px on each side)
+	width := textSize.Width + 40
+
+	// Enforce minimum and maximum bounds
+	if width < 150 {
+		width = 150
+	}
+	if width > 600 {
+		width = 600
+	}
+
+	return width
+}
+
+// calculatePackageColumnWidth calculates the optimal width for a package column
+// based on the longest version string or package name (header)
+func calculatePackageColumnWidth(rpt *report.Report, packageName string) float32 {
+	if rpt == nil {
+		return 120 // default width
+	}
+
+	// Start with the package name (header) as it's displayed in bold
+	longestText := packageName
+
+	// Check all version strings for this package
+	for _, repo := range rpt.Repositories {
+		version := repo.Dependencies[packageName]
+		if version != "" && len(version) > len(longestText) {
+			longestText = version
+		}
+	}
+
+	// Also consider "ERR" as a possible value
+	if len("ERR") > len(longestText) {
+		longestText = "ERR"
+	}
+
+	// Measure the text width using Fyne's text measurement with bold style
+	// (header is bold, and we want to ensure it fits)
+	textSize := fyne.MeasureText(longestText, fyne.CurrentApp().Settings().Theme().Size("text"), fyne.TextStyle{Bold: true})
+
+	// Add padding (15px on each side)
+	width := textSize.Width + 30
+
+	// Enforce minimum and maximum bounds
+	if width < 80 {
+		width = 80
+	}
+	if width > 300 {
+		width = 300
+	}
+
+	return width
+}
+
+func buildDependenciesView(rt *Runtime, w fyne.Window, enqueueUI func(func())) fyne.CanvasObject {
+	var table *widget.Table // declare early so we can reference it
+	var _ = table           // avoid unused variable error until table is assigned
+
+	// Create a container that will hold either the table or the spinner
+	contentContainer := container.NewStack()
+
+	// Create spinner for loading state
+	spinner := widget.NewProgressBarInfinite()
+	spinnerContainer := container.NewCenter(
+		container.NewVBox(
+			spinner,
+			widget.NewLabel("Loading dependencies..."),
+		),
 	)
 
+	status := widget.NewLabel("No report generated.")
+
 	refreshBtn := widget.NewButton("Refresh Report", func() {
-		runReportAsync(rt, app, enqueueUI, status)
+		// Show spinner when starting refresh
+		contentContainer.Objects = []fyne.CanvasObject{spinnerContainer}
+		contentContainer.Refresh()
+		runReportAsync(rt, enqueueUI, status, table, contentContainer)
 	})
 	exportBtn := widget.NewButton("Export JSON", func() {
 		exportJSONReport(rt, w)
 	})
 
-	table := widget.NewTable(
+	table = widget.NewTable(
 		func() (int, int) {
 			rt.mu.RLock()
 			defer rt.mu.RUnlock()
@@ -976,21 +1080,54 @@ func buildDependenciesView(rt *Runtime, app fyne.App, w fyne.Window, enqueueUI f
 		showRepoDetailsModal(rt.currentReport.Repositories[repoIdx], w)
 	}
 
+	// Set initial column widths
+	rt.mu.RLock()
+	if rt.currentReport != nil {
+		// Calculate and set repository column width based on content
+		repoColWidth := calculateRepoColumnWidth(rt.currentReport)
+		table.SetColumnWidth(0, repoColWidth)
+
+		// Set package column widths dynamically based on content
+		tracked := rt.state.TrackedPackages
+		var packages []string
+		if len(tracked) == 0 {
+			packages = rt.currentReport.Packages
+		} else {
+			packages = tracked
+		}
+		for i, pkgName := range packages {
+			colWidth := calculatePackageColumnWidth(rt.currentReport, pkgName)
+			table.SetColumnWidth(i+1, colWidth)
+		}
+	} else {
+		// No report yet, use default widths
+		table.SetColumnWidth(0, 300)
+		for i := 1; i < 20; i++ {
+			table.SetColumnWidth(i, 120)
+		}
+	}
+	rt.mu.RUnlock()
+
+	// Set initial content (table if report exists, empty if not)
+	rt.mu.RLock()
+	if rt.currentReport != nil {
+		contentContainer.Objects = []fyne.CanvasObject{table}
+	}
+	rt.mu.RUnlock()
+
 	return container.NewBorder(
 		container.NewVBox(
 			widget.NewLabelWithStyle("Dependencies Report", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			widget.NewSeparator(),
 			container.NewHBox(refreshBtn, exportBtn),
 			status,
-			widget.NewLabel("Progress:"),
-			progressList,
 		),
 		nil, nil, nil,
-		container.NewStack(table),
+		contentContainer,
 	)
 }
 
-func runReportAsync(rt *Runtime, _ fyne.App, enqueueUI func(func()), statusLabel *widget.Label) {
+func runReportAsync(rt *Runtime, enqueueUI func(func()), statusLabel *widget.Label, table *widget.Table, contentContainer *fyne.Container) {
 	rt.mu.Lock()
 	if rt.reportRunning {
 		rt.mu.Unlock()
@@ -1145,7 +1282,47 @@ func runReportAsync(rt *Runtime, _ fyne.App, enqueueUI func(func()), statusLabel
 				})
 			}
 			slog.Info("Report complete", "repos", len(rpt.Repositories), "packages", len(rpt.Packages))
+
+			// Update table column widths based on new report data and switch from spinner to table
+			if table != nil && rpt != nil && contentContainer != nil {
+				enqueueUI(func() {
+					// Calculate and set repository column width based on content
+					repoColWidth := calculateRepoColumnWidth(rpt)
+					table.SetColumnWidth(0, repoColWidth)
+
+					// Update package column widths dynamically based on content
+					rt.mu.RLock()
+					tracked := rt.state.TrackedPackages
+					var packages []string
+					if len(tracked) == 0 {
+						packages = rpt.Packages
+					} else {
+						packages = tracked
+					}
+					rt.mu.RUnlock()
+
+					for i, pkgName := range packages {
+						colWidth := calculatePackageColumnWidth(rpt, pkgName)
+						table.SetColumnWidth(i+1, colWidth)
+					}
+					table.Refresh()
+
+					// Switch from spinner to table
+					contentContainer.Objects = []fyne.CanvasObject{table}
+					contentContainer.Refresh()
+				})
+			}
 		}
+		// If report failed, hide spinner and show error message
+		if rErr != nil && contentContainer != nil {
+			enqueueUI(func() {
+				contentContainer.Objects = []fyne.CanvasObject{
+					container.NewCenter(widget.NewLabel("Report generation failed. Check status above for details.")),
+				}
+				contentContainer.Refresh()
+			})
+		}
+
 		enqueueUI(func() {
 			// Append successful history entry (only on success with a non-nil report)
 			if rErr == nil && rpt != nil {
