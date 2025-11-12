@@ -334,14 +334,14 @@ jobs:
           sudo apt-get install -y libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libglx-dev libgl1-mesa-dev libxxf86vm-dev
 
       - name: golangci-lint (core)
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           working-directory: core
           version: latest
           args: --timeout=5m ./...
 
       - name: golangci-lint (gui-desktop)
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           working-directory: gui/desktop
           version: latest
