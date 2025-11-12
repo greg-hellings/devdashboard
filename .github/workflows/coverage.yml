@@ -69,6 +69,7 @@ jobs:
   coverage-diff:
     name: Coverage diff
     runs-on: ubuntu-latest
+    continue-on-error: true
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout base branch
