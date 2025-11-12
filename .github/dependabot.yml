@@ -2,7 +2,32 @@ version: 2
 updates:
   # Go modules
   - package-ecosystem: "gomod"
-    directory: "/"
+    directory: "/core"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "go"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    reviewers:
+      - "greg-hellings"
+    assignees:
+      - "greg-hellings"
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "gomod"
+    directory: "/gui/desktop"
     schedule:
       interval: "weekly"
       day: "monday"
