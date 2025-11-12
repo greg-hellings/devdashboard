@@ -25,12 +25,12 @@ repos:
       - id: mixed-line-ending
       - id: trailing-whitespace
   - repo: https://github.com/trufflesecurity/trufflehog
-    rev: v3.90.11
+    rev: v3.90.13
     hooks:
       - id: trufflehog
 
   - repo: https://github.com/TekWizely/pre-commit-golang
-    rev: v1.0.0-rc.2
+    rev: v1.0.0-rc.4
     hooks:
       - id: go-fmt
       - id: go-mod-tidy-repo
@@ -40,6 +40,6 @@ repos:
       - id: go-lint
 
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.4
+    rev: v1.7.8
     hooks:
       - id: actionlint
