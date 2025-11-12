@@ -339,7 +339,7 @@ func startAutoRefresh(rt *Runtime, enqueueUI func(func())) {
 					slog.Info("Auto-refresh triggering report")
 					fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "Auto-refresh", Content: "Refreshing dependencies"})
 					enqueueUI(func() {
-						runReportAsync(rt, enqueueUI, nil, nil) // status label and table updated in view if present
+						runReportAsync(rt, enqueueUI, nil, nil, nil) // status label, table, and container updated in view if present
 					})
 				} else {
 					slog.Debug("Skipping auto-refresh; report already running")
@@ -962,32 +962,26 @@ func calculatePackageColumnWidth(rpt *report.Report, packageName string) float32
 func buildDependenciesView(rt *Runtime, w fyne.Window, enqueueUI func(func())) fyne.CanvasObject {
 	var table *widget.Table // declare early so we can reference it
 	var _ = table           // avoid unused variable error until table is assigned
-	status := widget.NewLabel("No report generated.")
-	progressList := widget.NewList(
-		func() int {
-			rt.mu.RLock()
-			defer rt.mu.RUnlock()
-			return len(rt.progressEvents)
-		},
-		func() fyne.CanvasObject { return widget.NewLabel("") },
-		func(i widget.ListItemID, o fyne.CanvasObject) {
-			rt.mu.RLock()
-			defer rt.mu.RUnlock()
-			if i < len(rt.progressEvents) {
-				ev := rt.progressEvents[i]
-				txt := fmt.Sprintf("%s %s", ev.Phase, ev.RepoID)
-				if ev.Error != nil {
-					txt += " (error)"
-				}
-				o.(*widget.Label).SetText(txt)
-			} else {
-				o.(*widget.Label).SetText("")
-			}
-		},
+
+	// Create a container that will hold either the table or the spinner
+	contentContainer := container.NewStack()
+
+	// Create spinner for loading state
+	spinner := widget.NewProgressBarInfinite()
+	spinnerContainer := container.NewCenter(
+		container.NewVBox(
+			spinner,
+			widget.NewLabel("Loading dependencies..."),
+		),
 	)
 
+	status := widget.NewLabel("No report generated.")
+
 	refreshBtn := widget.NewButton("Refresh Report", func() {
-		runReportAsync(rt, enqueueUI, status, table)
+		// Show spinner when starting refresh
+		contentContainer.Objects = []fyne.CanvasObject{spinnerContainer}
+		contentContainer.Refresh()
+		runReportAsync(rt, enqueueUI, status, table, contentContainer)
 	})
 	exportBtn := widget.NewButton("Export JSON", func() {
 		exportJSONReport(rt, w)
@@ -1111,21 +1105,26 @@ func buildDependenciesView(rt *Runtime, w fyne.Window, enqueueUI func(func())) f
 	}
 	rt.mu.RUnlock()
 
+	// Set initial content (table if report exists, empty if not)
+	rt.mu.RLock()
+	if rt.currentReport != nil {
+		contentContainer.Objects = []fyne.CanvasObject{table}
+	}
+	rt.mu.RUnlock()
+
 	return container.NewBorder(
 		container.NewVBox(
 			widget.NewLabelWithStyle("Dependencies Report", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			widget.NewSeparator(),
 			container.NewHBox(refreshBtn, exportBtn),
 			status,
-			widget.NewLabel("Progress:"),
-			progressList,
 		),
 		nil, nil, nil,
-		container.NewStack(table),
+		contentContainer,
 	)
 }
 
-func runReportAsync(rt *Runtime, enqueueUI func(func()), statusLabel *widget.Label, table *widget.Table) {
+func runReportAsync(rt *Runtime, enqueueUI func(func()), statusLabel *widget.Label, table *widget.Table, contentContainer *fyne.Container) {
 	rt.mu.Lock()
 	if rt.reportRunning {
 		rt.mu.Unlock()
@@ -1281,8 +1280,8 @@ func runReportAsync(rt *Runtime, enqueueUI func(func()), statusLabel *widget.Lab
 			}
 			slog.Info("Report complete", "repos", len(rpt.Repositories), "packages", len(rpt.Packages))
 
-			// Update table column widths based on new report data
-			if table != nil && rpt != nil {
+			// Update table column widths based on new report data and switch from spinner to table
+			if table != nil && rpt != nil && contentContainer != nil {
 				enqueueUI(func() {
 					// Calculate and set repository column width based on content
 					repoColWidth := calculateRepoColumnWidth(rpt)
@@ -1304,9 +1303,23 @@ func runReportAsync(rt *Runtime, enqueueUI func(func()), statusLabel *widget.Lab
 						table.SetColumnWidth(i+1, colWidth)
 					}
 					table.Refresh()
+
+					// Switch from spinner to table
+					contentContainer.Objects = []fyne.CanvasObject{table}
+					contentContainer.Refresh()
 				})
 			}
 		}
+		// If report failed, hide spinner and show error message
+		if rErr != nil && contentContainer != nil {
+			enqueueUI(func() {
+				contentContainer.Objects = []fyne.CanvasObject{
+					container.NewCenter(widget.NewLabel("Report generation failed. Check status above for details.")),
+				}
+				contentContainer.Refresh()
+			})
+		}
+
 		enqueueUI(func() {
 			// Append successful history entry (only on success with a non-nil report)
 			if rErr == nil && rpt != nil {
