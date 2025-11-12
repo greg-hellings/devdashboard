@@ -271,10 +271,9 @@ jobs:
         run: go work sync
 
       - name: Run Gosec Security Scanner
-        working-directory: core
         uses: securego/gosec@master
         with:
-          args: "-no-fail -fmt sarif -out results.sarif ./..."
+          args: "-no-fail -fmt sarif -out core/results.sarif ./core/..."
 
       - name: Upload SARIF file
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
