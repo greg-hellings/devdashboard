@@ -257,6 +257,11 @@ jobs:
       - name: Sync workspace
         run: go work sync
 
+      - name: Install Linux dependencies for GUI linting
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libglx-dev libgl1-mesa-dev libxxf86vm-dev
+
       - name: golangci-lint (core)
         uses: golangci/golangci-lint-action@v8
         with:
