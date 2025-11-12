@@ -297,7 +297,7 @@ func main() {
 	w.SetContent(root)
 
 	// Start auto-refresh if enabled (pass dispatcher)
-	startAutoRefresh(runtime, app, enqueueUI)
+	startAutoRefresh(runtime, enqueueUI)
 
 	w.SetCloseIntercept(func() {
 		slog.Info("Window closing - saving state")
@@ -314,7 +314,7 @@ func main() {
 
 // ----- Auto-Refresh -----
 
-func startAutoRefresh(rt *Runtime, app fyne.App, enqueueUI func(func())) {
+func startAutoRefresh(rt *Runtime, enqueueUI func(func())) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	if !rt.state.GUI.AutoRefresh.Enabled || rt.state.GUI.AutoRefresh.IntervalSeconds <= 0 {
@@ -339,7 +339,7 @@ func startAutoRefresh(rt *Runtime, app fyne.App, enqueueUI func(func())) {
 					slog.Info("Auto-refresh triggering report")
 					fyne.CurrentApp().SendNotification(&fyne.Notification{Title: "Auto-refresh", Content: "Refreshing dependencies"})
 					enqueueUI(func() {
-						runReportAsync(rt, app, enqueueUI, nil) // status label updated in view if present
+						runReportAsync(rt, enqueueUI, nil, nil) // status label and table updated in view if present
 					})
 				} else {
 					slog.Debug("Skipping auto-refresh; report already running")
@@ -371,7 +371,7 @@ func buildUI(app fyne.App, w fyne.Window, rt *Runtime, logHandler *RingLogHandle
 	// Pre-build views
 	providersView := buildProvidersView(rt, app, w)
 	reposView := buildRepositoriesView(rt, app, w)
-	depsView := buildDependenciesView(rt, app, w, enqueueUI)
+	depsView := buildDependenciesView(rt, w, enqueueUI)
 	packagesView := buildPackagesView(rt, app, w)
 	logsView := buildLogsView(rt, app, w, logHandler)
 
@@ -881,7 +881,87 @@ func editTrackedPackagesDialog(rt *Runtime, w fyne.Window, list *widget.List, st
 
 // ----- Dependencies (Report) View -----
 
-func buildDependenciesView(rt *Runtime, app fyne.App, w fyne.Window, enqueueUI func(func())) fyne.CanvasObject {
+// calculateRepoColumnWidth calculates the optimal width for the repository column
+// based on the longest repository name in the report
+func calculateRepoColumnWidth(rpt *report.Report) float32 {
+	if rpt == nil || len(rpt.Repositories) == 0 {
+		return 300 // default width
+	}
+
+	// Find the longest repository name
+	maxLen := len("Repository") // Start with header text
+	longestText := "Repository"
+
+	for _, repo := range rpt.Repositories {
+		repoText := fmt.Sprintf("%s/%s@%s", repo.Owner, repo.Repository, repo.Ref)
+		if len(repoText) > maxLen {
+			maxLen = len(repoText)
+			longestText = repoText
+		}
+	}
+
+	// Measure the text width using Fyne's text measurement with bold style
+	// (header is bold, so use that for measurement)
+	textSize := fyne.MeasureText(longestText, fyne.CurrentApp().Settings().Theme().Size("text"), fyne.TextStyle{Bold: true})
+
+	// Add padding (20px on each side)
+	width := textSize.Width + 40
+
+	// Enforce minimum and maximum bounds
+	if width < 150 {
+		width = 150
+	}
+	if width > 600 {
+		width = 600
+	}
+
+	return width
+}
+
+// calculatePackageColumnWidth calculates the optimal width for a package column
+// based on the longest version string or package name (header)
+func calculatePackageColumnWidth(rpt *report.Report, packageName string) float32 {
+	if rpt == nil {
+		return 120 // default width
+	}
+
+	// Start with the package name (header) as it's displayed in bold
+	longestText := packageName
+
+	// Check all version strings for this package
+	for _, repo := range rpt.Repositories {
+		version := repo.Dependencies[packageName]
+		if version != "" && len(version) > len(longestText) {
+			longestText = version
+		}
+	}
+
+	// Also consider "ERR" as a possible value
+	if len("ERR") > len(longestText) {
+		longestText = "ERR"
+	}
+
+	// Measure the text width using Fyne's text measurement with bold style
+	// (header is bold, and we want to ensure it fits)
+	textSize := fyne.MeasureText(longestText, fyne.CurrentApp().Settings().Theme().Size("text"), fyne.TextStyle{Bold: true})
+
+	// Add padding (15px on each side)
+	width := textSize.Width + 30
+
+	// Enforce minimum and maximum bounds
+	if width < 80 {
+		width = 80
+	}
+	if width > 300 {
+		width = 300
+	}
+
+	return width
+}
+
+func buildDependenciesView(rt *Runtime, w fyne.Window, enqueueUI func(func())) fyne.CanvasObject {
+	var table *widget.Table // declare early so we can reference it
+	var _ = table           // avoid unused variable error until table is assigned
 	status := widget.NewLabel("No report generated.")
 	progressList := widget.NewList(
 		func() int {
@@ -907,13 +987,13 @@ func buildDependenciesView(rt *Runtime, app fyne.App, w fyne.Window, enqueueUI f
 	)
 
 	refreshBtn := widget.NewButton("Refresh Report", func() {
-		runReportAsync(rt, app, enqueueUI, status)
+		runReportAsync(rt, enqueueUI, status, table)
 	})
 	exportBtn := widget.NewButton("Export JSON", func() {
 		exportJSONReport(rt, w)
 	})
 
-	table := widget.NewTable(
+	table = widget.NewTable(
 		func() (int, int) {
 			rt.mu.RLock()
 			defer rt.mu.RUnlock()
@@ -1003,6 +1083,34 @@ func buildDependenciesView(rt *Runtime, app fyne.App, w fyne.Window, enqueueUI f
 		showRepoDetailsModal(rt.currentReport.Repositories[repoIdx], w)
 	}
 
+	// Set initial column widths
+	rt.mu.RLock()
+	if rt.currentReport != nil {
+		// Calculate and set repository column width based on content
+		repoColWidth := calculateRepoColumnWidth(rt.currentReport)
+		table.SetColumnWidth(0, repoColWidth)
+
+		// Set package column widths dynamically based on content
+		tracked := rt.state.TrackedPackages
+		var packages []string
+		if len(tracked) == 0 {
+			packages = rt.currentReport.Packages
+		} else {
+			packages = tracked
+		}
+		for i, pkgName := range packages {
+			colWidth := calculatePackageColumnWidth(rt.currentReport, pkgName)
+			table.SetColumnWidth(i+1, colWidth)
+		}
+	} else {
+		// No report yet, use default widths
+		table.SetColumnWidth(0, 300)
+		for i := 1; i < 20; i++ {
+			table.SetColumnWidth(i, 120)
+		}
+	}
+	rt.mu.RUnlock()
+
 	return container.NewBorder(
 		container.NewVBox(
 			widget.NewLabelWithStyle("Dependencies Report", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -1017,7 +1125,7 @@ func buildDependenciesView(rt *Runtime, app fyne.App, w fyne.Window, enqueueUI f
 	)
 }
 
-func runReportAsync(rt *Runtime, _ fyne.App, enqueueUI func(func()), statusLabel *widget.Label) {
+func runReportAsync(rt *Runtime, enqueueUI func(func()), statusLabel *widget.Label, table *widget.Table) {
 	rt.mu.Lock()
 	if rt.reportRunning {
 		rt.mu.Unlock()
@@ -1172,6 +1280,32 @@ func runReportAsync(rt *Runtime, _ fyne.App, enqueueUI func(func()), statusLabel
 				})
 			}
 			slog.Info("Report complete", "repos", len(rpt.Repositories), "packages", len(rpt.Packages))
+
+			// Update table column widths based on new report data
+			if table != nil && rpt != nil {
+				enqueueUI(func() {
+					// Calculate and set repository column width based on content
+					repoColWidth := calculateRepoColumnWidth(rpt)
+					table.SetColumnWidth(0, repoColWidth)
+
+					// Update package column widths dynamically based on content
+					rt.mu.RLock()
+					tracked := rt.state.TrackedPackages
+					var packages []string
+					if len(tracked) == 0 {
+						packages = rpt.Packages
+					} else {
+						packages = tracked
+					}
+					rt.mu.RUnlock()
+
+					for i, pkgName := range packages {
+						colWidth := calculatePackageColumnWidth(rpt, pkgName)
+						table.SetColumnWidth(i+1, colWidth)
+					}
+					table.Refresh()
+				})
+			}
 		}
 		enqueueUI(func() {
 			// Append successful history entry (only on success with a non-nil report)
