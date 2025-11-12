@@ -1,0 +1,54 @@
+name: Dependabot Go Mod Tidy
+
+on:
+  pull_request:
+    paths:
+      - "**/go.mod"
+      - "**/go.sum"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  tidy:
+    # Only run on Dependabot PRs
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "core/go.mod"
+          cache: false
+
+      - name: Run go mod tidy in core
+        run: |
+          cd core
+          go mod tidy
+          if ! git diff --quiet go.mod go.sum; then
+            echo "core_changed=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run go mod tidy in gui/desktop
+        run: |
+          cd gui/desktop
+          go mod tidy
+          if ! git diff --quiet go.mod go.sum; then
+            echo "gui_changed=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Commit changes
+        if: env.core_changed == 'true' || env.gui_changed == 'true'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m "chore(deps): run go mod tidy"
+          git push
