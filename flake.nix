@@ -68,7 +68,7 @@
           # Works because build context root is src=./., and modRoot limits module resolution.
           # Once core is version-tagged, drop the replace and require a version instead.
 
-          vendorHash = "sha256-hol+Dv+IQAuWFJN+xUY+4bsKYqu9ilVbO4PxxxtMaQs=";
+          vendorHash = "sha256-Q0yOTD3VjCksU1VC9bEM2/AMqyyKvtzLuauNTn4Swic=";
 
           # pkg-config is required to find libraries during build
           nativeBuildInputs = [ pkgs.pkg-config ];
