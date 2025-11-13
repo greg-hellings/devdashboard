@@ -5,6 +5,9 @@ on:
     branches: [main, master, develop]
   pull_request:
     branches: [main, master, develop]
+  schedule:
+    # Run every night at 2 AM UTC
+    - cron: "0 2 * * *"
   workflow_dispatch:
 
 permissions:
@@ -55,16 +58,26 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ["1.24", "1.25"]
+        go-version: ${{ github.event_name == 'schedule' && fromJSON('["1.24", "1.25", "tip"]') || fromJSON('["1.24", "1.25"]') }}
+      fail-fast: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Set up Go
+      - name: Set up Go (stable)
+        if: matrix.go-version != 'tip'
         uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
+
+      - name: Set up Go (tip)
+        if: matrix.go-version == 'tip'
+        run: |
+          git clone https://go.googlesource.com/go /tmp/go-tip
+          cd /tmp/go-tip/src
+          ./make.bash
+          echo "/tmp/go-tip/bin" >> "$GITHUB_PATH"
 
       - name: Cache Go workspace build
         uses: actions/cache@v4
@@ -98,7 +111,12 @@ jobs:
 
       - name: Run tests (core)
         working-directory: core
-        run: go test -v -race -coverprofile=coverage.out ./pkg/...
+        run: go test -v -race ${{ github.event_name == 'schedule' && '-count=3' || '' }} -coverprofile=coverage.out ./pkg/...
+
+      - name: Run benchmarks (core)
+        if: github.event_name == 'schedule'
+        working-directory: core
+        run: go test -bench=. -benchmem ./pkg/...
 
       - name: Upload coverage to Codecov
         if: matrix.go-version == '1.24'
@@ -150,6 +168,11 @@ jobs:
 
       - name: Test binary
         run: ./devdashboard${{ matrix.os == 'windows-latest' && '.exe' || '' }} help
+
+      - name: Run integration tests (core)
+        if: github.event_name == 'schedule'
+        working-directory: core
+        run: go test -v -tags=integration ./pkg/...
 
   go-gui-build:
     name: Go GUI build (desktop module)
@@ -289,7 +312,11 @@ jobs:
           skipPush: ${{ secrets.CACHIX_AUTH_TOKEN == '' }}
 
       - name: Run flake checks
-        run: nix flake check -L
+        run: nix flake check -L ${{ github.event_name == 'schedule' && '--keep-going' || '' }}
+
+      - name: Build all outputs
+        if: github.event_name == 'schedule'
+        run: nix build -L .#
 
   code-quality:
     name: Code quality checks (core)
@@ -400,6 +427,69 @@ jobs:
         with:
           sarif_file: core/results.sarif
 
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.24"
+
+      - name: Sync workspace
+        run: go work sync
+
+      - name: Run govulncheck (core)
+        working-directory: core
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+      - name: Check for outdated dependencies (core)
+        working-directory: core
+        run: |
+          go list -u -m all > outdated.txt
+          cat outdated.txt
+
+      - name: Upload outdated dependencies report
+        uses: actions/upload-artifact@v5
+        with:
+          name: outdated-dependencies
+          path: core/outdated.txt
+          retention-days: 30
+
+  nightly-notification:
+    name: Send nightly failure notification
+    runs-on: ubuntu-latest
+    needs:
+      - pre-commit
+      - go-tests
+      - go-build
+      - go-gui-build
+      - examples
+      - nix-build
+      - nix-checks
+      - code-quality
+      - security
+      - dependency-audit
+    if: github.event_name == 'schedule' && failure()
+    steps:
+      - name: Send failure notification
+        uses: actions/github-script@v8
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Nightly build failed - ${new Date().toISOString().split('T')[0]}`,
+              body: `The nightly build failed. Check the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId}) for details.`,
+              labels: ['ci-failure', 'nightly']
+            });
+
   all-checks:
     name: All checks passed
     runs-on: ubuntu-latest
@@ -413,7 +503,7 @@ jobs:
       - nix-checks
       - code-quality
       - security
-    if: always()
+    if: always() && github.event_name != 'schedule'
     steps:
       - name: Check all job statuses
         run: |
