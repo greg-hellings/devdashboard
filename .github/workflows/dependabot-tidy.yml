@@ -44,8 +44,18 @@ jobs:
             echo "gui_changed=true" >> "$GITHUB_ENV"
           fi
 
+      - name: Run go mod tidy in examples
+        run: |
+          for example in examples/*; do
+            cd "examples/${example}"
+            go mod tidy
+            if ! git diff --quiet go.mod go.sum; then
+              echo "example_changed=true" >> "$GITHUB_ENV"
+            fi
+          done
+
       - name: Commit changes
-        if: env.core_changed == 'true' || env.gui_changed == 'true'
+        if: env.core_changed == 'true' || env.gui_changed == 'true' || env.example_changed == 'true'
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
