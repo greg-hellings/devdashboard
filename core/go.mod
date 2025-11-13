@@ -7,7 +7,7 @@ require (
 	github.com/google/go-github/v57 v57.0.0
 	github.com/jedib0t/go-pretty/v6 v6.7.1
 	github.com/spf13/cobra v1.10.1
-	gitlab.com/gitlab-org/api/client-go v0.159.0
+	gitlab.com/gitlab-org/api/client-go v0.160.0
 	golang.org/x/oauth2 v0.33.0
 	golang.org/x/term v0.37.0
 	gopkg.in/yaml.v3 v3.0.1
