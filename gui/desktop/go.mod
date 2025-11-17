@@ -3,7 +3,7 @@ module github.com/greg-hellings/devdashboard/gui/desktop
 go 1.24.0
 
 require (
-	fyne.io/fyne/v2 v2.7.0
+	fyne.io/fyne/v2 v2.7.1
 	github.com/greg-hellings/devdashboard/core v0.0.0
 )
 
