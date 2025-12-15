@@ -43,7 +43,7 @@ jobs:
           skipPush: ${{ secrets.CACHIX_AUTH_TOKEN == '' }}
 
       - name: Cache pre-commit environments
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -80,7 +80,7 @@ jobs:
           echo "/tmp/go-tip/bin" >> "$GITHUB_PATH"
 
       - name: Cache Go workspace build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -146,7 +146,7 @@ jobs:
           cache: true
 
       - name: Cache Go workspace build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -205,7 +205,7 @@ jobs:
           cache: true
 
       - name: Cache Go workspace build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -243,7 +243,7 @@ jobs:
           cache: true
 
       - name: Cache Go workspace build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -332,7 +332,7 @@ jobs:
           cache: true
 
       - name: Cache Go workspace build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -399,7 +399,7 @@ jobs:
           go-version: "1.24"
 
       - name: Cache Go workspace build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
